@@ -3,7 +3,7 @@
 
 Simulate every possible blackjack scenario to discover the best move, generate custom basic strategy tables, and calculate the expected value of any strategy—all tailored to your ruleset.
 
-For a simpler explanation of the different options see the `README <https://github.com/AttackingOrDefending/Blackjack-Strategy-Simulator/README.md#usage>`_.
+For a simpler explanation of the different options see the `README <https://github.com/AttackingOrDefending/Blackjack-Strategy-Simulator/blob/main/README.md#usage>`_.
 
 Contents:
 ---------
