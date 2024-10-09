@@ -233,13 +233,6 @@ python expected_value.py --custom
 
 `Total profit: -327.5, Average profit: -0.003275`
 
-The included basic strategies were generated with the following rules:
-- 6 decks
-- Dealer Stands on Soft 17
-- Double After Split Allowed
-- Dealer Peeks For Blackjack
-- Surrender Allowed
-
 # 📋Supported rules
 
 - Variable amount of decks
