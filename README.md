@@ -3,8 +3,8 @@
 Simulate every possible blackjack scenario to discover the best move, generate custom basic strategy tables, and calculate the expected value of any strategy—all tailored to your ruleset.
 
 [![Build](https://img.shields.io/github/actions/workflow/status/AttackingOrDefending/Blackjack-Strategy-Simulator/build.yml)](https://github.com/AttackingOrDefending/Blackjack-Strategy-Simulator/actions/workflows/build.yml)
-[![Tests](https://img.shields.io/github/actions/workflow/status/AttackingOrDefending/Blackjack-Strategy-Simulator/test.yml)](https://github.com/AttackingOrDefending/Blackjack-Strategy-Simulator/actions/workflows/test.yml)
-[![Mypy](https://img.shields.io/github/actions/workflow/status/AttackingOrDefending/Blackjack-Strategy-Simulator/mypy.yml)](https://github.com/AttackingOrDefending/Blackjack-Strategy-Simulator/actions/workflows/mypy.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/AttackingOrDefending/Blackjack-Strategy-Simulator/test.yml?label=tests)](https://github.com/AttackingOrDefending/Blackjack-Strategy-Simulator/actions/workflows/test.yml)
+[![Mypy](https://img.shields.io/github/actions/workflow/status/AttackingOrDefending/Blackjack-Strategy-Simulator/mypy.yml?label=mypy)](https://github.com/AttackingOrDefending/Blackjack-Strategy-Simulator/actions/workflows/mypy.yml)
 [![Read the Docs](https://img.shields.io/readthedocs/sundialy)](https://Blackjack-Strategy-Simulator.readthedocs.io/en/latest/)
 [![License](https://img.shields.io/badge/License-AGPLv3+-blue.svg)](https://github.com/AttackingOrDefending/Blackjack-Strategy-Simulator/blob/main/LICENSE)
 ![Python versions](https://img.shields.io/badge/Python-3.10%20|%203.11%20|%203.12%20|%203.13-blue)
