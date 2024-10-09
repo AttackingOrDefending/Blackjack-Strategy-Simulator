@@ -1,0 +1,9 @@
+.venv
+venv
+.idea
+__pycache__
+test/__pycache__
+.mypy_cache
+.pytest_cache
+docs/build
+other
