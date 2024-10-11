@@ -318,7 +318,7 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
     return avg_profit
 
 
-def _expected_value_multithreading_wrapper(results: multiprocessing.Queue, action_class: action_strategies.BaseMover,
+def _expected_value_multithreading_wrapper(results: multiprocessing.Queue[float], action_class: action_strategies.BaseMover,
                                            betting_class: betting_strategies.BaseBetter,
                                            simulations: int, deck_number: int = 6, shoe_penetration: float = .25,
                                            dealer_peeks_for_blackjack: bool = True, das: bool = True,
@@ -359,7 +359,7 @@ def expected_value_multithreading(action_class: action_strategies.BaseMover, bet
     :param surrender_allowed: Whether the game rules allow surrendering.
     :return: The average return of a hand.
     """
-    core_results = multiprocessing.Queue()
+    core_results: multiprocessing.Queue[float] = multiprocessing.Queue()
     worker_pool = []
     for _ in range(cores):
         p = multiprocessing.Process(target=_expected_value_multithreading_wrapper,
@@ -424,7 +424,7 @@ if __name__ == "__main__":
 
     if args.cores > 1:
         expected_value_multithreading(mover, better, args.simulations, args.cores, args.decks, args.deck_penetration,
-                                  peek_for_bj, das_allowed, stand_soft_17, can_surrender)
+                                      peek_for_bj, das_allowed, stand_soft_17, can_surrender)
     else:
         expected_value(mover, better, args.simulations, args.decks, args.deck_penetration, peek_for_bj, das_allowed,
                        stand_soft_17, can_surrender)
