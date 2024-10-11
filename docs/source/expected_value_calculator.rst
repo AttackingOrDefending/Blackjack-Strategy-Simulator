@@ -7,6 +7,7 @@ Command line options
 .. code-block:: console
 
     -c, --custom          Run custom user-defined movers and betters that require special initialization.
+    --cores CORES         How many cores to use in the calculation. (default: 1)
     -m MOVER, --mover MOVER
                           Use a predefined mover. Can also be the name of the class of a user-defined mover. (possible
                           values: card-count, basic-strategy, perfect, simple; default: card-count)
@@ -15,11 +16,11 @@ Command line options
                           values: card-count, simple; default: card-count)
     -s SIMULATIONS, --simulations SIMULATIONS
                           How many simulations to run. Running more simulations gives more accurate results but they are
-                          slower to calculate. (default: 100,000)
+                          slower to calculate. (default: 500,000)
     --decks DECKS         How many decks the shoe starts with. (default: 6)
     --deck-penetration DECK_PENETRATION
-                          When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck penetration.
-                          (default: 0.25)
+                          When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck
+                          penetration. (default: 0.25)
     --stand17             Dealer should stand on soft 17. (default: true)
     --hit17               Dealer should hit on soft 17. (default: false)
     --das                 Allow double after split. (default: true)

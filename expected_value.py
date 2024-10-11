@@ -8,6 +8,7 @@ import random
 import betting_strategies
 import action_strategies
 import argparse
+import multiprocessing
 
 
 class Hand:
@@ -199,7 +200,7 @@ def simulate_hand(action_class: action_strategies.BaseMover, betting_class: bett
             elif player_has_blackjack:
                 return (1 * 3 / 2 + insurance_profit) * bet, 0
 
-    if action == "u" and can_surrender:
+    if action == "u" and can_surrender_now:
         return (-.5 + insurance_profit) * bet, 0
 
     elif action == "s":
@@ -262,7 +263,7 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
                    simulations: int, deck_number: int = 6, shoe_penetration: float = .25,
                    dealer_peeks_for_blackjack: bool = True, das: bool = True,
                    dealer_stands_soft_17: bool = True, surrender_allowed: bool = True,
-                   plot_profits: bool = True) -> float:
+                   plot_profits: bool = True, print_info: bool = True) -> float:
     """
     Estimate the expected value of a strategy.
 
@@ -276,6 +277,7 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
     :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
     :param surrender_allowed: Whether the game rules allow surrendering.
     :param plot_profits: Whether a plot showing how the profit changed over time should be made at the end.
+    :param print_info: Whether to print information about the progress of the simulation. Disabled for multithreading.
     :return: The average return of a hand.
     """
     starting_shoe = DECK * deck_number
@@ -286,7 +288,7 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
     profit = 0.
     profits_over_time = [profit]
     for i in range(simulations):
-        if i % 100_000 == 0:
+        if print_info and i % 100_000 == 0:
             print(f"Games played: {readable_number(i)}/{readable_number(simulations)}")
         if len(shoe) < reshuffle_at:
             shoe = starting_shoe.copy()
@@ -303,7 +305,8 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
         profits_over_time.append(profit)
 
     avg_profit = profit / simulations
-    print(f"Total profit: {profit}, Average profit: {avg_profit}")
+    if print_info:
+        print(f"Total profit: {profit}, Average profit: {avg_profit}")
     if plot_profits:
         plt.plot(profits_over_time, label="Total profit")
         plt.xlabel("Games played")
@@ -315,28 +318,87 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
     return avg_profit
 
 
+def _expected_value_multithreading_wrapper(results: multiprocessing.Queue, action_class: action_strategies.BaseMover,
+                                           betting_class: betting_strategies.BaseBetter,
+                                           simulations: int, deck_number: int = 6, shoe_penetration: float = .25,
+                                           dealer_peeks_for_blackjack: bool = True, das: bool = True,
+                                           dealer_stands_soft_17: bool = True, surrender_allowed: bool = True) -> None:
+    """
+    Estimate the expected value of a strategy. Used inside multithreading. Don't use this function directly.
+
+    :param action_class: The class that chooses the action.
+    :param betting_class: The class that chooses the bet.
+    :param simulations: How many hands to play.
+    :param deck_number: The number of decks in the initial shoe.
+    :param shoe_penetration: When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck penetration.
+    :param dealer_peeks_for_blackjack: Whether the dealer peeks for blackjack.
+    :param das: Whether we can double after splitting.
+    :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
+    :param surrender_allowed: Whether the game rules allow surrendering.
+    """
+    results.put(expected_value(action_class, betting_class, simulations, deck_number, shoe_penetration,
+                               dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed, False, False))
+
+
+def expected_value_multithreading(action_class: action_strategies.BaseMover, betting_class: betting_strategies.BaseBetter,
+                                  total_simulations: int, cores: int = 2, deck_number: int = 6, shoe_penetration: float = .25,
+                                  dealer_peeks_for_blackjack: bool = True, das: bool = True,
+                                  dealer_stands_soft_17: bool = True, surrender_allowed: bool = True) -> float:
+    """
+    Estimate the expected value of a strategy, using multithreading to speed up the process. Can't plot the results.
+
+    :param action_class: The class that chooses the action.
+    :param betting_class: The class that chooses the bet.
+    :param total_simulations: How many hands to play in total.
+    :param cores: How many cores to use for the simulation.
+    :param deck_number: The number of decks in the initial shoe.
+    :param shoe_penetration: When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck penetration.
+    :param dealer_peeks_for_blackjack: Whether the dealer peeks for blackjack.
+    :param das: Whether we can double after splitting.
+    :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
+    :param surrender_allowed: Whether the game rules allow surrendering.
+    :return: The average return of a hand.
+    """
+    core_results = multiprocessing.Queue()
+    worker_pool = []
+    for _ in range(cores):
+        p = multiprocessing.Process(target=_expected_value_multithreading_wrapper,
+                                    args=(core_results, action_class, betting_class, total_simulations // cores,
+                                          deck_number, shoe_penetration, dealer_peeks_for_blackjack, das,
+                                          dealer_stands_soft_17, surrender_allowed))
+        p.start()
+        worker_pool.append(p)
+    for p in worker_pool:
+        p.join()  # Wait for all the workers to finish.
+    total_profit = 0.
+    for _ in range(cores):
+        total_profit += core_results.get()
+    avg_profit = total_profit / cores
+    print(f"Total profit: {total_profit * (total_simulations // cores)}, Average profit: {avg_profit}")
+    return avg_profit
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='Expected Value (EV) Calculation',
                                      description='Evaluate the profitability of different blackjack strategies by calculating'
                                                  ' their expected value (EV).')
-    parser.add_argument("-c", "--custom", action='store_true', help='Run custom user-defined movers and betters'
-                                                                    ' that require special initialization.')
-    parser.add_argument("-m", "--mover", default="card-count", help='Use a predefined mover. Can also be '
-                                                                    'the name of the class of a user-defined mover. '
-                                                                    '(possible values: card-count, basic-strategy, '
-                                                                    'perfect, simple; default: card-count)')
-    parser.add_argument("-b", "--better", default="card-count", help='Use a predefined better. Can also be '
-                                                                     'the name of the class of a user-defined better. '
-                                                                     '(possible values: card-count, simple; '
-                                                                     'default: card-count)')
-    parser.add_argument("-s", "--simulations", default=500_000, type=int, help='How many simulations to run. '
-                                                                               'Running more simulations gives more accurate '
-                                                                               'results but they are slower to calculate. '
-                                                                               '(default: 100,000)')
+    parser.add_argument("-c", "--custom", action='store_true',
+                        help='Run custom user-defined movers and betters that require special initialization.')
+    parser.add_argument("--cores", default=1, type=int,
+                        help='How many cores to use in the calculation. (default: 1)')
+    parser.add_argument("-m", "--mover", default="card-count",
+                        help='Use a predefined mover. Can also be the name of the class of a user-defined mover. '
+                             '(possible values: card-count, basic-strategy, perfect, simple; default: card-count)')
+    parser.add_argument("-b", "--better", default="card-count",
+                        help='Use a predefined better. Can also be the name of the class of a user-defined better. '
+                             '(possible values: card-count, simple; default: card-count)')
+    parser.add_argument("-s", "--simulations", default=500_000, type=int,
+                        help='How many simulations to run. Running more simulations gives more accurate '
+                             'results but they are slower to calculate. (default: 500,000)')
     parser.add_argument("--decks", default=6, type=int, help='How many decks the shoe starts with. (default: 6)')
-    parser.add_argument("--deck-penetration", default=.25, type=float, help='When to reshuffle the shoe. '
-                                                                            'Reshuffles when cards remaining < starting cards'
-                                                                            ' * deck penetration. (default: 0.25)')
+    parser.add_argument("--deck-penetration", default=.25, type=float,
+                        help='When to reshuffle the shoe. Reshuffles when cards remaining < starting cards'
+                             ' * deck penetration. (default: 0.25)')
     parser.add_argument("--stand17", action='store_true', help='Dealer should stand on soft 17. (default: true)')
     parser.add_argument("--hit17", action='store_true', help='Dealer should hit on soft 17. (default: false)')
     parser.add_argument("--das", action='store_true', help='Allow double after split. (default: true)')
@@ -360,5 +422,9 @@ if __name__ == "__main__":
     else:
         mover, better = get_mover_and_better(args.mover, args.better)
 
-    expected_value(mover, better, args.simulations, args.decks, args.deck_penetration, peek_for_bj, das_allowed,
-                   stand_soft_17, can_surrender)
+    if args.cores > 1:
+        expected_value_multithreading(mover, better, args.simulations, args.cores, args.decks, args.deck_penetration,
+                                  peek_for_bj, das_allowed, stand_soft_17, can_surrender)
+    else:
+        expected_value(mover, better, args.simulations, args.decks, args.deck_penetration, peek_for_bj, das_allowed,
+                       stand_soft_17, can_surrender)

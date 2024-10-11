@@ -38,6 +38,7 @@ Simulate every possible blackjack scenario to discover the best move, generate c
 
 The most comprehensive open-source tool for blackjack strategy generation and evaluation.
 Provides the most detailed insights available, all while being easily customizable to different rule sets.
+Supports multithreading.
 
 - **Basic Strategy Generation:** Create highly customized basic strategy tables based on specific blackjack rule variations. The simulator also generates true count deviations for card counting, allowing players to adapt their strategy dynamically as the shoe evolves.
 - **Best Move Analysis:** Accurately calculate the best possible action for any blackjack hand by simulating and evaluating every scenario across a variety of deck configurations and rules. Unlike other calculators, this tool takes into account complex situations such as card splits, ensuring more precise decision-making.
@@ -125,6 +126,11 @@ python expected_value.py --mover=basic-strategy --better=simple
 * Run more simulations:
 ```commandline
 python expected_value.py --simulations=1_000_000
+```
+
+* Run on multiple threads:
+```commandline
+python expected_value.py --simulations=1_000_000 --cores=10
 ```
 
 ![Expected Value (EV) Calculation](images/ev2.png)
