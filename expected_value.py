@@ -1,4 +1,5 @@
 """Estimate the expected value of a given strategy."""
+from __future__ import annotations
 from utils import get_cards_seen, DECK, readable_number
 from action_strategies import BaseMover
 from betting_strategies import BaseBetter
