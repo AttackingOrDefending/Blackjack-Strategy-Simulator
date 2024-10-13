@@ -64,6 +64,8 @@ Example:
                                     shoe_penetration=.2, dealer_peeks_for_blackjack=True, das=True,
                                     dealer_stands_soft_17=True, surrender_allowed=False, plot_profits=False)
 
+.. autofunction:: expected_value.expected_value_multithreading
+
 Simulate one hand
 -----------------
 
@@ -81,3 +83,7 @@ Utilities
 .. autoclass:: expected_value.Hand
     :members:
 
+Wrapper for multithreading
+--------------------------
+
+.. autofunction:: expected_value._expected_value_multithreading_wrapper
