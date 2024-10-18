@@ -83,7 +83,7 @@ def probabilities_if_dealer_peeks_for_blackjack(counts: dict[int, int], dealer_u
     return new_probabilities
 
 
-@lru_cache(maxsize=1_00_000)
+@lru_cache(maxsize=1_000_000)
 def can_never_split(cards: tuple[int, ...]) -> bool:
     """
     Get if the player can't split.
