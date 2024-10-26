@@ -4,7 +4,7 @@ from basic_strategy_generator import draw_and_export_tables
 
 def test_basic_strategy() -> None:
     """Test the basic strategy generator."""
-    draw_and_export_tables(0, "basic_strategy_generated_during_testing.csv", plot_results=False)
+    draw_and_export_tables(0, filename="basic_strategy_generated_during_testing.csv", plot_results=False)
     with open("basic_strategy_generated_during_testing.csv") as file:
         test_contents = file.read()
     correct_contents = """n4,h,h,h,h,h,h,h,h,h,h
