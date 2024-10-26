@@ -9,6 +9,7 @@ Command line options
     -e EFFORT, --effort EFFORT
                           How many different hand combinations to test. (min: 0=fastest, very accurate; max: 5=very
                           slow, super accurate; default: 0)
+    --cores CORES         How many cores to use in the calculation. (default: 1)
     -f FILENAME, --filename FILENAME
                           Where to save the basic strategy generated. Leave empty to not save. (default: don't save)
     -tc TRUE_COUNT, --true-count TRUE_COUNT
@@ -16,8 +17,8 @@ Command line options
                           basic strategy. (default: generate basic strategy)
     --decks DECKS         How many decks the shoe starts with. (default: 6)
     --deck-penetration DECK_PENETRATION
-                          When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck penetration.
-                          (default: 0.25)
+                          When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck
+                          penetration. (default: 0.25)
     --stand17             Dealer should stand on soft 17. (default: true)
     --hit17               Dealer should hit on soft 17. (default: false)
     --das                 Allow double after split. (default: true)
@@ -40,7 +41,7 @@ Example:
 
     from basic_strategy_generator import draw_and_export_tables
 
-    hard_totals, soft_totals, pair_splitting = draw_and_export_tables(effort=1, filename="strategy.csv", true_count=2,
+    hard_totals, soft_totals, pair_splitting = draw_and_export_tables(effort=1, cores=2, filename="strategy.csv", true_count=2,
                                                                       number_of_decks=8, deck_penetration=.25, dealer_peeks_for_blackjack=True,
                                                                       das=True, dealer_stands_soft_17=True, can_surrender=True, plot_results=False)
 

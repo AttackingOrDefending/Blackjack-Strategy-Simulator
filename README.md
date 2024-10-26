@@ -79,6 +79,11 @@ _From 0 (fastest, very accurate) to 5 (very slow, super accurate). Default is 0.
 python basic_strategy_generator.py --effort=2
 ```
 
+* Run on multiple cores:
+```commandline
+python basic_strategy_generator.py --cores=10
+```
+
 * Generate deviations from basic strategy:
 ```commandline
 python basic_strategy_generator.py --true-count=-5
@@ -128,7 +133,7 @@ python expected_value.py --mover=basic-strategy --better=simple
 python expected_value.py --simulations=1_000_000
 ```
 
-* Run on multiple threads:
+* Run on multiple cores:
 ```commandline
 python expected_value.py --simulations=1_000_000 --cores=10
 ```

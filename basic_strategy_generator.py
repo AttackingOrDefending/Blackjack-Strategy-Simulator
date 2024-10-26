@@ -3,13 +3,14 @@ from best_move import perfect_mover_cache
 from shoe_generators import hilo_generator
 from utils import DECK
 from utils import list_range_str
-from typing import Iterable, cast
+from typing import Iterable
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import itertools
 import csv
 import re
 import argparse
+import multiprocessing as mp
 
 
 class Hand:
@@ -81,13 +82,14 @@ def argmax(*profits: float) -> tuple[float, str]:
     return 0, ""
 
 
-def no_ace_table_generator(card_numbers: tuple[int, ...] = (2, 3, 4), number_of_decks: int = 6,
+def no_ace_table_generator(cores: int = 1, card_numbers: tuple[int, ...] = (2, 3, 4), number_of_decks: int = 6,
                            true_count: int | None = None, shoes_to_test: int | None = None,
                            deck_penetration: float = .25, dealer_peeks_for_blackjack: bool = True, das: bool = True,
                            dealer_stands_soft_17: bool = True, can_surrender: bool = True) -> dict[int, dict[int, str]]:
     """
     Generate basic strategy when we don't have an ace.
 
+    :param cores: How many cores to use in the generation of basic strategy.
     :param card_numbers: Test all hand with card_numbers number of hands. (e.g. if card_numbers is (2, 3), then all hands
         with 2 or 3 cards will be tested)
     :param number_of_decks: The number of decks in the initial shoe.
@@ -105,14 +107,15 @@ def no_ace_table_generator(card_numbers: tuple[int, ...] = (2, 3, 4), number_of_
     shoe = DECK * number_of_decks
     shoe.sort()
 
-    data_table = {player_total: {dealer_up_card: {
-        key: [0., 0., 0., 0., 0., 0., 0.] for key in ["all", "double", "surrender", "insurance"]}
-        for dealer_up_card in range(2, 12)} for player_total in range(4, 22)}
+    arguments = []
+    all_combinations = []
+
     possible_cards = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10]
     for card_number in card_numbers:
-        all_combinations = list(itertools.combinations_with_replacement(possible_cards, card_number))
-        all_combinations = list(map(lambda comb: tuple(sorted(comb)), all_combinations))
-        set_combinations = dict.fromkeys(all_combinations)
+        all_combinations_card_number = list(itertools.combinations_with_replacement(possible_cards, card_number))
+        all_combinations_card_number = list(map(lambda comb: tuple(sorted(comb)), all_combinations_card_number))
+        all_combinations += all_combinations_card_number
+        set_combinations = dict.fromkeys(all_combinations_card_number)
         for cards in set_combinations:
             hand_value = Hand(cards).value()
             if hand_value > 21 or hand_value < 4:
@@ -132,48 +135,53 @@ def no_ace_table_generator(card_numbers: tuple[int, ...] = (2, 3, 4), number_of_
 
                 for example_shoe in decks:
                     shoe_copy = example_shoe.copy()
+                    arguments.append((cards, dealer_up_card, tuple(shoe_copy), card_number <= 2,
+                                      card_number == 2, can_surrender and card_number == 2, 0,
+                                      dealer_peeks_for_blackjack, das, dealer_stands_soft_17, True))
 
-                    profits = cast(tuple[float, ...],
-                                   perfect_mover_cache(cards, dealer_up_card, tuple(shoe_copy),
-                                                       can_double=card_number <= 2,
-                                                       can_surrender=can_surrender and card_number == 2,
-                                                       can_insure=card_number == 2, max_splits=0,
-                                                       dealer_peeks_for_blackjack=dealer_peeks_for_blackjack,
-                                                       das=das, dealer_stands_soft_17=dealer_stands_soft_17,
-                                                       return_all_profits=True))
-                    print(f"Player cards: {cards}, Dealer up card: {dealer_up_card}, No ace profits: {profits}")
+    data_table = {player_total: {dealer_up_card: {
+        key: [0., 0., 0., 0., 0., 0., 0.] for key in ["all", "double", "surrender", "insurance"]}
+        for dealer_up_card in range(2, 12)} for player_total in range(4, 22)}
+    with mp.Pool(processes=cores) as pool:
+        for argument, profits in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
+            cards = argument[0]
+            dealer_up_card = argument[1]
+            hand = Hand(cards)
+            hand_value, hand_aces = hand.value_aces()
+            card_number = len(cards)
+            print(f"Player cards: {cards}, Dealer up card: {dealer_up_card}, No ace profits: {profits}")
 
-                    data_table[hand_value][dealer_up_card]["all"][6] += 1 * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][0] += profits[0] * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][1] += profits[1] * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][2] -= 1000 * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][3] -= 1000 * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][4] -= 1000 * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][5] -= 1000 * all_combinations.count(cards)
-                    if card_number == 2:
-                        data_table[hand_value][dealer_up_card]["double"][6] += 1 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][0] += profits[0] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][1] += profits[1] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][2] += profits[2] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][3] -= 1000 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][4] -= 1000 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][5] -= 1000 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][6] += 1 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][0] += profits[0] * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][1] += profits[1] * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][2] -= 1000 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][3] -= 1000 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][4] -= 1000 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][5] -= 1000 * all_combinations.count(cards)
+            if card_number == 2:
+                data_table[hand_value][dealer_up_card]["double"][6] += 1 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][0] += profits[0] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][1] += profits[1] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][2] += profits[2] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][3] -= 1000 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][4] -= 1000 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][5] -= 1000 * all_combinations.count(cards)
 
-                        data_table[hand_value][dealer_up_card]["surrender"][6] += 1 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][0] += profits[0] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][1] += profits[1] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][2] += profits[2] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][3] += profits[3] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][4] += profits[4] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][5] -= 1000 * all_combinations.count(cards)
-                    if dealer_up_card == 11 and card_number == 2:
-                        data_table[hand_value][dealer_up_card]["insurance"][6] += 1 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][0] += profits[0] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][1] += profits[1] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][2] += profits[2] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][3] += profits[3] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][4] += profits[4] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][5] += profits[5] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][6] += 1 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][0] += profits[0] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][1] += profits[1] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][2] += profits[2] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][3] += profits[3] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][4] += profits[4] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][5] -= 1000 * all_combinations.count(cards)
+            if dealer_up_card == 11 and card_number == 2:
+                data_table[hand_value][dealer_up_card]["insurance"][6] += 1 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][0] += profits[0] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][1] += profits[1] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][2] += profits[2] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][3] += profits[3] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][4] += profits[4] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][5] += profits[5] * all_combinations.count(cards)
 
     print(f"No ace data table:\n{data_table}")
 
@@ -216,13 +224,14 @@ def no_ace_table_generator(card_numbers: tuple[int, ...] = (2, 3, 4), number_of_
     return clean_table
 
 
-def ace_table_generator(card_numbers: tuple[int, ...] = (2, 3, 4), number_of_decks: int = 6,
+def ace_table_generator(cores: int = 1, card_numbers: tuple[int, ...] = (2, 3, 4), number_of_decks: int = 6,
                         true_count: int | None = None, shoes_to_test: int | None = None,
                         deck_penetration: float = .25, dealer_peeks_for_blackjack: bool = True, das: bool = True,
                         dealer_stands_soft_17: bool = True, can_surrender: bool = True) -> dict[int, dict[int, str]]:
     """
     Generate basic strategy when we have an ace.
 
+    :param cores: How many cores to use in the generation of basic strategy.
     :param card_numbers: Test all hand with card_numbers number of hands. (e.g. if card_numbers is (2, 3), then all hands
         with 2 or 3 cards will be tested)
     :param number_of_decks: The number of decks in the initial shoe.
@@ -240,15 +249,15 @@ def ace_table_generator(card_numbers: tuple[int, ...] = (2, 3, 4), number_of_dec
     shoe = DECK * number_of_decks
     shoe.sort()
 
-    data_table = {player_total: {dealer_up_card: {
-        key: [0., 0., 0., 0., 0., 0., 0.] for key in ["all", "double", "surrender", "insurance"]}
-        for dealer_up_card in range(2, 12)} for player_total in range(12, 22)}
+    arguments = []
+    all_combinations = []
     possible_cards = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
     for card_number in card_numbers:
-        all_combinations = list(itertools.combinations_with_replacement(possible_cards, card_number - 1))
-        all_combinations = list(map(lambda comb: comb + (11,), all_combinations))
-        all_combinations = list(map(lambda comb: tuple(sorted(comb)), all_combinations))
-        set_combinations = dict.fromkeys(all_combinations)
+        all_combinations_card_number = list(itertools.combinations_with_replacement(possible_cards, card_number - 1))
+        all_combinations_card_number = list(map(lambda comb: comb + (11,), all_combinations_card_number))
+        all_combinations_card_number = list(map(lambda comb: tuple(sorted(comb)), all_combinations_card_number))
+        all_combinations += all_combinations_card_number
+        set_combinations = dict.fromkeys(all_combinations_card_number)
         for cards in set_combinations:
             hand = Hand(cards)
             hand_value, hand_aces = hand.value_aces()
@@ -269,48 +278,53 @@ def ace_table_generator(card_numbers: tuple[int, ...] = (2, 3, 4), number_of_dec
 
                 for example_shoe in decks:
                     shoe_copy = example_shoe.copy()
+                    arguments.append((cards, dealer_up_card, tuple(shoe_copy), card_number <= 2,
+                                      card_number == 2, can_surrender and card_number == 2, 0,
+                                      dealer_peeks_for_blackjack, das, dealer_stands_soft_17, True))
 
-                    profits = cast(tuple[float, ...],
-                                   perfect_mover_cache(cards, dealer_up_card, tuple(shoe_copy),
-                                                       can_double=card_number <= 2,
-                                                       can_surrender=can_surrender and card_number == 2,
-                                                       can_insure=card_number == 2, max_splits=0,
-                                                       dealer_peeks_for_blackjack=dealer_peeks_for_blackjack, das=das,
-                                                       dealer_stands_soft_17=dealer_stands_soft_17,
-                                                       return_all_profits=True))
-                    print(f"Player cards: {cards}, Dealer up card: {dealer_up_card}, Ace profits: {profits}")
+    data_table = {player_total: {dealer_up_card: {
+        key: [0., 0., 0., 0., 0., 0., 0.] for key in ["all", "double", "surrender", "insurance"]}
+        for dealer_up_card in range(2, 12)} for player_total in range(12, 22)}
+    with mp.Pool(processes=cores) as pool:
+        for argument, profits in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
+            cards = argument[0]
+            dealer_up_card = argument[1]
+            hand = Hand(cards)
+            hand_value, hand_aces = hand.value_aces()
+            card_number = len(cards)
+            print(f"Player cards: {cards}, Dealer up card: {dealer_up_card}, Ace profits: {profits}")
 
-                    data_table[hand_value][dealer_up_card]["all"][6] += 1 * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][0] += profits[0] * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][1] += profits[1] * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][2] -= 1000 * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][3] -= 1000 * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][4] -= 1000 * all_combinations.count(cards)
-                    data_table[hand_value][dealer_up_card]["all"][5] -= 1000 * all_combinations.count(cards)
-                    if card_number == 2:
-                        data_table[hand_value][dealer_up_card]["double"][6] += 1 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][0] += profits[0] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][1] += profits[1] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][2] += profits[2] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][3] -= 1000 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][4] -= 1000 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["double"][5] -= 1000 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][6] += 1 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][0] += profits[0] * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][1] += profits[1] * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][2] -= 1000 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][3] -= 1000 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][4] -= 1000 * all_combinations.count(cards)
+            data_table[hand_value][dealer_up_card]["all"][5] -= 1000 * all_combinations.count(cards)
+            if card_number == 2:
+                data_table[hand_value][dealer_up_card]["double"][6] += 1 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][0] += profits[0] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][1] += profits[1] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][2] += profits[2] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][3] -= 1000 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][4] -= 1000 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["double"][5] -= 1000 * all_combinations.count(cards)
 
-                        data_table[hand_value][dealer_up_card]["surrender"][6] += 1 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][0] += profits[0] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][1] += profits[1] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][2] += profits[2] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][3] += profits[3] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][4] += profits[4] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["surrender"][5] -= 1000 * all_combinations.count(cards)
-                    if dealer_up_card == 11 and card_number == 2:
-                        data_table[hand_value][dealer_up_card]["insurance"][6] += 1 * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][0] += profits[0] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][1] += profits[1] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][2] += profits[2] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][3] += profits[3] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][4] += profits[4] * all_combinations.count(cards)
-                        data_table[hand_value][dealer_up_card]["insurance"][5] += profits[5] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][6] += 1 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][0] += profits[0] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][1] += profits[1] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][2] += profits[2] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][3] += profits[3] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][4] += profits[4] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["surrender"][5] -= 1000 * all_combinations.count(cards)
+            if dealer_up_card == 11 and card_number == 2:
+                data_table[hand_value][dealer_up_card]["insurance"][6] += 1 * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][0] += profits[0] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][1] += profits[1] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][2] += profits[2] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][3] += profits[3] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][4] += profits[4] * all_combinations.count(cards)
+                data_table[hand_value][dealer_up_card]["insurance"][5] += profits[5] * all_combinations.count(cards)
     print(f"Ace data table:\n{data_table}")
 
     clean_table = {player_total: {dealer_up_card: "" for dealer_up_card in range(2, 12)} for player_total in range(12, 22)}
@@ -351,13 +365,14 @@ def ace_table_generator(card_numbers: tuple[int, ...] = (2, 3, 4), number_of_dec
     return clean_table
 
 
-def split_table_generator(max_splits: int = 1, number_of_decks: int = 6, true_count: int | None = None,
+def split_table_generator(cores: int = 1, max_splits: int = 1, number_of_decks: int = 6, true_count: int | None = None,
                           shoes_to_test: int | None = None, deck_penetration: float = .25,
                           dealer_peeks_for_blackjack: bool = True, das: bool = True,
                           dealer_stands_soft_17: bool = True, can_surrender: bool = True) -> dict[int, dict[int, str]]:
     """
     Generate basic strategy when we can split.
 
+    :param cores: How many cores to use in the generation of basic strategy.
     :param max_splits: The maximum number of times a hand can be split. (1=fastest, fairly accurate; 3=slowest, super accurate)
     :param number_of_decks: The number of decks in the initial shoe.
     :param true_count: The true count that we should generate basic strategy for.
@@ -374,12 +389,11 @@ def split_table_generator(max_splits: int = 1, number_of_decks: int = 6, true_co
     shoe = DECK * number_of_decks
     shoe.sort()
 
-    data_table = {player_total: {dealer_up_card: [0., 0., 0., 0., 0., 0., 0.] for dealer_up_card in range(2, 12)}
-                  for player_total in range(2, 12)}
+    arguments = []
+
     for split_card in range(2, 12):
         cards = (split_card, split_card)
         for dealer_up_card in range(2, 12):
-
             if true_count is None:
                 default_shoe = shoe.copy()
                 for card in cards + (dealer_up_card,):
@@ -392,15 +406,18 @@ def split_table_generator(max_splits: int = 1, number_of_decks: int = 6, true_co
 
             for example_shoe in decks:
                 shoe_copy = example_shoe.copy()
+                print(f"Player cards: {cards}, Dealer up card: {dealer_up_card}, Split shoe: {shoe_copy}")
+                arguments.append((cards, dealer_up_card, tuple(shoe_copy), True, True, can_surrender, max_splits,
+                                  dealer_peeks_for_blackjack, das, dealer_stands_soft_17, True))
 
-                profits = cast(tuple[float, ...], perfect_mover_cache(cards, dealer_up_card, tuple(shoe_copy),
-                                                                      max_splits=max_splits,
-                                                                      can_surrender=can_surrender,
-                                                                      dealer_peeks_for_blackjack=dealer_peeks_for_blackjack,
-                                                                      das=das, dealer_stands_soft_17=dealer_stands_soft_17,
-                                                                      return_all_profits=True))
+    data_table = {player_total: {dealer_up_card: [0., 0., 0., 0., 0., 0., 0.] for dealer_up_card in range(2, 12)}
+                  for player_total in range(2, 12)}
+    with mp.Pool(processes=cores) as pool:
+        for argument, profits in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
+                split_card = argument[0][0]
+                dealer_up_card = argument[1]
 
-                print(f"Player cards: {cards}, Dealer up card: {dealer_up_card}, Split profits: {profits}")
+                print(f"Player cards: {argument[0]}, Dealer up card: {dealer_up_card}, Split profits: {profits}")
                 data_table[split_card][dealer_up_card][6] += 1
                 data_table[split_card][dealer_up_card][0] += profits[0]
                 data_table[split_card][dealer_up_card][1] += profits[1]
@@ -439,7 +456,7 @@ def split_table_generator(max_splits: int = 1, number_of_decks: int = 6, true_co
     return clean_table
 
 
-def draw_and_export_tables(effort: int = 0, filename: str | None = None, true_count: int | None = None,
+def draw_and_export_tables(effort: int = 0, cores: int = 1, filename: str | None = None, true_count: int | None = None,
                            number_of_decks: int = 6, deck_penetration: float = .25,
                            dealer_peeks_for_blackjack: bool = True, das: bool = True,
                            dealer_stands_soft_17: bool = True, can_surrender: bool = True,
@@ -449,6 +466,7 @@ def draw_and_export_tables(effort: int = 0, filename: str | None = None, true_co
 
     :param effort: How many different hand combinations to test. (min: 0=fastest, very accurate;
         max: 5=very slow, super accurate)
+    :param cores: How many cores to use in the generation of basic strategy.
     :param filename: Where to store the basic strategy. If it is None, then it isn't saved.
     :param true_count: The true count that we should generate basic strategy for.
         Default is None which generates general basic strategy. An integer, generated deviations from basic strategy.
@@ -506,7 +524,7 @@ def draw_and_export_tables(effort: int = 0, filename: str | None = None, true_co
     ax.spines['left'].set_visible(False)
     ax.yaxis.set_label_coords(-0.12, 0)
 
-    no_ace_table_dict = no_ace_table_generator(card_numbers, number_of_decks=number_of_decks, true_count=true_count,
+    no_ace_table_dict = no_ace_table_generator(cores, card_numbers, number_of_decks=number_of_decks, true_count=true_count,
                                                shoes_to_test=shoes_to_test, deck_penetration=deck_penetration,
                                                dealer_peeks_for_blackjack=dealer_peeks_for_blackjack, das=das,
                                                dealer_stands_soft_17=dealer_stands_soft_17, can_surrender=can_surrender)
@@ -565,7 +583,7 @@ def draw_and_export_tables(effort: int = 0, filename: str | None = None, true_co
     ax2.spines['left'].set_visible(False)
     ax2.yaxis.set_label_coords(-0.12, 0)
 
-    ace_table_dict = ace_table_generator(card_numbers, number_of_decks=number_of_decks, true_count=true_count,
+    ace_table_dict = ace_table_generator(cores, card_numbers, number_of_decks=number_of_decks, true_count=true_count,
                                          shoes_to_test=shoes_to_test, deck_penetration=deck_penetration,
                                          dealer_peeks_for_blackjack=dealer_peeks_for_blackjack, das=das,
                                          dealer_stands_soft_17=dealer_stands_soft_17, can_surrender=can_surrender)
@@ -624,7 +642,7 @@ def draw_and_export_tables(effort: int = 0, filename: str | None = None, true_co
     ax3.spines['left'].set_visible(False)
     ax3.yaxis.set_label_coords(-0.12, 0)
 
-    split_table_dict = split_table_generator(max_splits, number_of_decks=number_of_decks, true_count=true_count,
+    split_table_dict = split_table_generator(cores, max_splits, number_of_decks=number_of_decks, true_count=true_count,
                                              shoes_to_test=shoes_for_split, deck_penetration=deck_penetration,
                                              dealer_peeks_for_blackjack=dealer_peeks_for_blackjack, das=das,
                                              dealer_stands_soft_17=dealer_stands_soft_17, can_surrender=can_surrender)
@@ -695,6 +713,8 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--effort", default=0, type=int, help='How many different hand combinations '
                                                                     'to test. (min: 0=fastest, very accurate; '
                                                                     'max: 5=very slow, super accurate; default: 0)')
+    parser.add_argument("--cores", default=1, type=int,
+                        help='How many cores to use in the calculation. (default: 1)')
     parser.add_argument("-f", "--filename", help='Where to save the basic strategy generated. Leave empty '
                                                  'to not save. (default: don\'t save)')
     parser.add_argument("-tc", "--true-count", help='Generate deviations from basic strategy for a specific'
@@ -719,5 +739,9 @@ if __name__ == "__main__":
     peek_for_bj = args.peek or (not args.no_peek)
     surrender_allowed = args.surrender or (not args.no_surrender)
 
-    draw_and_export_tables(args.effort, args.filename, args.true_count, args.decks, args.deck_penetration, peek_for_bj,
-                           das_allowed, stand_soft_17, surrender_allowed)
+    from other.dev_tools.time_code import start_timing, end_timing
+
+    pr = start_timing()
+    draw_and_export_tables(args.effort, args.cores, args.filename, args.true_count, args.decks, args.deck_penetration,
+                           peek_for_bj, das_allowed, stand_soft_17, surrender_allowed,True)
+    end_timing(pr)
