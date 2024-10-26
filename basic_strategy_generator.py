@@ -739,9 +739,5 @@ if __name__ == "__main__":
     peek_for_bj = args.peek or (not args.no_peek)
     surrender_allowed = args.surrender or (not args.no_surrender)
 
-    from other.dev_tools.time_code import start_timing, end_timing
-
-    pr = start_timing()
     draw_and_export_tables(args.effort, args.cores, args.filename, args.true_count, args.decks, args.deck_penetration,
                            peek_for_bj, das_allowed, stand_soft_17, surrender_allowed,True)
-    end_timing(pr)

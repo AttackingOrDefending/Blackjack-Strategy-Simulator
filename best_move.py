@@ -120,7 +120,7 @@ def dict_to_tuple(counts: dict[int, int]) -> tuple[int, ...]:
     return (0, 0) + tuple([counts[k] for k in range(2, 12)])
 
 
-@lru_cache(maxsize=100_000)  # < 1 GB.
+@lru_cache(maxsize=100_000)
 def create_deck_from_counts(counts: tuple[int, ...]) -> tuple[int, ...]:
     """
     Create a deck from the counts of every card.
@@ -145,7 +145,7 @@ def create_deck_from_counts_cache(counts: dict[int, int]) -> tuple[int, ...]:
     return create_deck_from_counts(dict_to_tuple(counts))
 
 
-@lru_cache(maxsize=1_000_000)  # < 1 GB.
+@lru_cache(maxsize=1_000_000)
 def chances_of_beating_dealer(hand_value: int, dealer_value: int, dealer_has_ace: bool, counts: tuple[int, ...],
                               dealer_more_than_1_card: bool, dealer_peeks_for_blackjack: bool,
                               dealer_stands_soft_17: bool) -> float:
@@ -199,7 +199,7 @@ def chances_of_beating_dealer(hand_value: int, dealer_value: int, dealer_has_ace
     return beat_probability
 
 
-@lru_cache(maxsize=100_000)  # < 1 GB.
+@lru_cache(maxsize=100_000)
 def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: tuple[int, ...],
                   can_double: bool = True, can_insure: bool = True, can_surrender: bool = True, max_splits: int = 3,
                   dealer_peeks_for_blackjack: bool = True, das: bool = True, dealer_stands_soft_17: bool = True
