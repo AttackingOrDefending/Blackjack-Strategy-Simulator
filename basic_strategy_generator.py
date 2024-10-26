@@ -3,7 +3,7 @@ from best_move import perfect_mover_cache
 from shoe_generators import hilo_generator
 from utils import DECK
 from utils import list_range_str
-from typing import Iterable
+from typing import Iterable, cast
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import itertools
@@ -143,7 +143,8 @@ def no_ace_table_generator(cores: int = 1, card_numbers: tuple[int, ...] = (2, 3
         key: [0., 0., 0., 0., 0., 0., 0.] for key in ["all", "double", "surrender", "insurance"]}
         for dealer_up_card in range(2, 12)} for player_total in range(4, 22)}
     with mp.Pool(processes=cores) as pool:
-        for argument, profits in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
+        for argument, profits_not_cast in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
+            profits = cast(tuple[float, ...], profits_not_cast)
             cards = argument[0]
             dealer_up_card = argument[1]
             hand = Hand(cards)
@@ -286,7 +287,8 @@ def ace_table_generator(cores: int = 1, card_numbers: tuple[int, ...] = (2, 3, 4
         key: [0., 0., 0., 0., 0., 0., 0.] for key in ["all", "double", "surrender", "insurance"]}
         for dealer_up_card in range(2, 12)} for player_total in range(12, 22)}
     with mp.Pool(processes=cores) as pool:
-        for argument, profits in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
+        for argument, profits_not_cast in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
+            profits = cast(tuple[float, ...], profits_not_cast)
             cards = argument[0]
             dealer_up_card = argument[1]
             hand = Hand(cards)
@@ -413,18 +415,19 @@ def split_table_generator(cores: int = 1, max_splits: int = 1, number_of_decks: 
     data_table = {player_total: {dealer_up_card: [0., 0., 0., 0., 0., 0., 0.] for dealer_up_card in range(2, 12)}
                   for player_total in range(2, 12)}
     with mp.Pool(processes=cores) as pool:
-        for argument, profits in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
-                split_card = argument[0][0]
-                dealer_up_card = argument[1]
+        for argument, profits_not_cast in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
+            profits = cast(tuple[float, ...], profits_not_cast)
+            split_card = argument[0][0]
+            dealer_up_card = argument[1]
 
-                print(f"Player cards: {argument[0]}, Dealer up card: {dealer_up_card}, Split profits: {profits}")
-                data_table[split_card][dealer_up_card][6] += 1
-                data_table[split_card][dealer_up_card][0] += profits[0]
-                data_table[split_card][dealer_up_card][1] += profits[1]
-                data_table[split_card][dealer_up_card][2] += profits[2]
-                data_table[split_card][dealer_up_card][3] += profits[3]
-                data_table[split_card][dealer_up_card][4] += profits[4]
-                data_table[split_card][dealer_up_card][5] += profits[5]
+            print(f"Player cards: {argument[0]}, Dealer up card: {dealer_up_card}, Split profits: {profits}")
+            data_table[split_card][dealer_up_card][6] += 1
+            data_table[split_card][dealer_up_card][0] += profits[0]
+            data_table[split_card][dealer_up_card][1] += profits[1]
+            data_table[split_card][dealer_up_card][2] += profits[2]
+            data_table[split_card][dealer_up_card][3] += profits[3]
+            data_table[split_card][dealer_up_card][4] += profits[4]
+            data_table[split_card][dealer_up_card][5] += profits[5]
 
     print(f"Split data table:\n{data_table}")
 
@@ -740,4 +743,4 @@ if __name__ == "__main__":
     surrender_allowed = args.surrender or (not args.no_surrender)
 
     draw_and_export_tables(args.effort, args.cores, args.filename, args.true_count, args.decks, args.deck_penetration,
-                           peek_for_bj, das_allowed, stand_soft_17, surrender_allowed,True)
+                           peek_for_bj, das_allowed, stand_soft_17, surrender_allowed, True)
