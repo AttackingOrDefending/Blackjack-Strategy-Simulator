@@ -10,7 +10,7 @@ import itertools
 import csv
 import re
 import argparse
-import multiprocessing as mp
+import multiprocessing
 
 
 class Hand:
@@ -142,7 +142,7 @@ def no_ace_table_generator(cores: int = 1, card_numbers: tuple[int, ...] = (2, 3
     data_table = {player_total: {dealer_up_card: {
         key: [0., 0., 0., 0., 0., 0., 0.] for key in ["all", "double", "surrender", "insurance"]}
         for dealer_up_card in range(2, 12)} for player_total in range(4, 22)}
-    with mp.Pool(processes=cores) as pool:
+    with multiprocessing.Pool(processes=cores) as pool:
         for argument, profits_not_cast in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
             profits = cast(tuple[float, ...], profits_not_cast)
             cards = argument[0]
@@ -286,7 +286,7 @@ def ace_table_generator(cores: int = 1, card_numbers: tuple[int, ...] = (2, 3, 4
     data_table = {player_total: {dealer_up_card: {
         key: [0., 0., 0., 0., 0., 0., 0.] for key in ["all", "double", "surrender", "insurance"]}
         for dealer_up_card in range(2, 12)} for player_total in range(12, 22)}
-    with mp.Pool(processes=cores) as pool:
+    with multiprocessing.Pool(processes=cores) as pool:
         for argument, profits_not_cast in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
             profits = cast(tuple[float, ...], profits_not_cast)
             cards = argument[0]
@@ -408,19 +408,18 @@ def split_table_generator(cores: int = 1, max_splits: int = 1, number_of_decks: 
 
             for example_shoe in decks:
                 shoe_copy = example_shoe.copy()
-                print(f"Player cards: {cards}, Dealer up card: {dealer_up_card}, Split shoe: {shoe_copy}")
                 arguments.append((cards, dealer_up_card, tuple(shoe_copy), True, True, can_surrender, max_splits,
                                   dealer_peeks_for_blackjack, das, dealer_stands_soft_17, True))
 
     data_table = {player_total: {dealer_up_card: [0., 0., 0., 0., 0., 0., 0.] for dealer_up_card in range(2, 12)}
                   for player_total in range(2, 12)}
-    with mp.Pool(processes=cores) as pool:
+    with multiprocessing.Pool(processes=cores) as pool:
         for argument, profits_not_cast in zip(arguments, pool.starmap(perfect_mover_cache, arguments)):
             profits = cast(tuple[float, ...], profits_not_cast)
             split_card = argument[0][0]
             dealer_up_card = argument[1]
 
-            print(f"Player cards: {argument[0]}, Dealer up card: {dealer_up_card}, Split profits: {profits}")
+            print(f"Player cards: {argument[0]}, Dealer up card: {dealer_up_card}, Split profits: {profits}, Split shoe: {argument[2]}")
             data_table[split_card][dealer_up_card][6] += 1
             data_table[split_card][dealer_up_card][0] += profits[0]
             data_table[split_card][dealer_up_card][1] += profits[1]
@@ -717,7 +716,7 @@ if __name__ == "__main__":
                                                                     'to test. (min: 0=fastest, very accurate; '
                                                                     'max: 5=very slow, super accurate; default: 0)')
     parser.add_argument("--cores", default=1, type=int,
-                        help='How many cores to use in the calculation. (default: 1)')
+                        help='How many cores to use in the calculation. (default: 1, use -1 for all cores)')
     parser.add_argument("-f", "--filename", help='Where to save the basic strategy generated. Leave empty '
                                                  'to not save. (default: don\'t save)')
     parser.add_argument("-tc", "--true-count", help='Generate deviations from basic strategy for a specific'
@@ -742,5 +741,7 @@ if __name__ == "__main__":
     peek_for_bj = args.peek or (not args.no_peek)
     surrender_allowed = args.surrender or (not args.no_surrender)
 
-    draw_and_export_tables(args.effort, args.cores, args.filename, args.true_count, args.decks, args.deck_penetration,
+    cores = args.cores if args.cores != -1 else multiprocessing.cpu_count()
+
+    draw_and_export_tables(args.effort, cores, args.filename, args.true_count, args.decks, args.deck_penetration,
                            peek_for_bj, das_allowed, stand_soft_17, surrender_allowed, True)

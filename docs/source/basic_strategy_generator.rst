@@ -9,7 +9,7 @@ Command line options
     -e EFFORT, --effort EFFORT
                           How many different hand combinations to test. (min: 0=fastest, very accurate; max: 5=very
                           slow, super accurate; default: 0)
-    --cores CORES         How many cores to use in the calculation. (default: 1)
+    --cores CORES         How many cores to use in the calculation. (default: 1, use -1 for all cores)
     -f FILENAME, --filename FILENAME
                           Where to save the basic strategy generated. Leave empty to not save. (default: don't save)
     -tc TRUE_COUNT, --true-count TRUE_COUNT

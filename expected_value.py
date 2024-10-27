@@ -386,7 +386,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--custom", action='store_true',
                         help='Run custom user-defined movers and betters that require special initialization.')
     parser.add_argument("--cores", default=1, type=int,
-                        help='How many cores to use in the calculation. (default: 1)')
+                        help='How many cores to use in the calculation. (default: 1, use -1 for all cores)')
     parser.add_argument("-m", "--mover", default="card-count",
                         help='Use a predefined mover. Can also be the name of the class of a user-defined mover. '
                              '(possible values: card-count, basic-strategy, perfect, simple; default: card-count)')
@@ -416,6 +416,8 @@ if __name__ == "__main__":
     peek_for_bj = args.peek or (not args.no_peek)
     can_surrender = args.surrender or (not args.no_surrender)
 
+    cores = args.cores if args.cores != -1 else multiprocessing.cpu_count()
+
     if args.custom:
         # ADD CUSTOM CODE HERE IF YOU HAVE BUILT YOUR OWN MOVER OR BETTER.
         mover = BaseMover()  # Replace BaseMover with your own class.
@@ -423,8 +425,8 @@ if __name__ == "__main__":
     else:
         mover, better = get_mover_and_better(args.mover, args.better)
 
-    if args.cores > 1:
-        expected_value_multithreading(mover, better, args.simulations, args.cores, args.decks, args.deck_penetration,
+    if cores > 1:
+        expected_value_multithreading(mover, better, args.simulations, cores, args.decks, args.deck_penetration,
                                       peek_for_bj, das_allowed, stand_soft_17, can_surrender)
     else:
         expected_value(mover, better, args.simulations, args.decks, args.deck_penetration, peek_for_bj, das_allowed,

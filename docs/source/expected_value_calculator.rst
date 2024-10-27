@@ -7,7 +7,7 @@ Command line options
 .. code-block:: console
 
     -c, --custom          Run custom user-defined movers and betters that require special initialization.
-    --cores CORES         How many cores to use in the calculation. (default: 1)
+    --cores CORES         How many cores to use in the calculation. (default: 1, use -1 for all cores)
     -m MOVER, --mover MOVER
                           Use a predefined mover. Can also be the name of the class of a user-defined mover. (possible
                           values: card-count, basic-strategy, perfect, simple; default: card-count)

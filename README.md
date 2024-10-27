@@ -82,6 +82,7 @@ python basic_strategy_generator.py --effort=2
 * Run on multiple cores:
 ```commandline
 python basic_strategy_generator.py --cores=10
+python basic_strategy_generator.py --cores=-1  # Use all available cores.
 ```
 
 * Generate deviations from basic strategy:
@@ -136,6 +137,7 @@ python expected_value.py --simulations=1_000_000
 * Run on multiple cores:
 ```commandline
 python expected_value.py --simulations=1_000_000 --cores=10
+python expected_value.py --simulations=1_000_000 --cores=-1  # Use all available cores.
 ```
 
 ![Expected Value (EV) Calculation](images/ev2.png)
