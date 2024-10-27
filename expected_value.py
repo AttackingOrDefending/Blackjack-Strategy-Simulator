@@ -416,7 +416,7 @@ if __name__ == "__main__":
     peek_for_bj = args.peek or (not args.no_peek)
     can_surrender = args.surrender or (not args.no_surrender)
 
-    cores = args.cores if args.cores != -1 else multiprocessing.cpu_count()
+    cores_used = args.cores if args.cores != -1 else multiprocessing.cpu_count()
 
     if args.custom:
         # ADD CUSTOM CODE HERE IF YOU HAVE BUILT YOUR OWN MOVER OR BETTER.
@@ -425,8 +425,8 @@ if __name__ == "__main__":
     else:
         mover, better = get_mover_and_better(args.mover, args.better)
 
-    if cores > 1:
-        expected_value_multithreading(mover, better, args.simulations, cores, args.decks, args.deck_penetration,
+    if cores_used > 1:
+        expected_value_multithreading(mover, better, args.simulations, cores_used, args.decks, args.deck_penetration,
                                       peek_for_bj, das_allowed, stand_soft_17, can_surrender)
     else:
         expected_value(mover, better, args.simulations, args.decks, args.deck_penetration, peek_for_bj, das_allowed,

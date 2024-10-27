@@ -419,7 +419,8 @@ def split_table_generator(cores: int = 1, max_splits: int = 1, number_of_decks: 
             split_card = argument[0][0]
             dealer_up_card = argument[1]
 
-            print(f"Player cards: {argument[0]}, Dealer up card: {dealer_up_card}, Split profits: {profits}, Split shoe: {argument[2]}")
+            print(f"Player cards: {argument[0]}, Dealer up card: {dealer_up_card}, Split profits: {profits},"
+                  f" Split shoe: {argument[2]}")
             data_table[split_card][dealer_up_card][6] += 1
             data_table[split_card][dealer_up_card][0] += profits[0]
             data_table[split_card][dealer_up_card][1] += profits[1]
@@ -741,7 +742,7 @@ if __name__ == "__main__":
     peek_for_bj = args.peek or (not args.no_peek)
     surrender_allowed = args.surrender or (not args.no_surrender)
 
-    cores = args.cores if args.cores != -1 else multiprocessing.cpu_count()
+    cores_used = args.cores if args.cores != -1 else multiprocessing.cpu_count()
 
-    draw_and_export_tables(args.effort, cores, args.filename, args.true_count, args.decks, args.deck_penetration,
+    draw_and_export_tables(args.effort, cores_used, args.filename, args.true_count, args.decks, args.deck_penetration,
                            peek_for_bj, das_allowed, stand_soft_17, surrender_allowed, True)
