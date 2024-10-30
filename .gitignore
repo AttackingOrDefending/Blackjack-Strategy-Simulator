@@ -7,3 +7,4 @@ test/__pycache__
 .pytest_cache
 docs/build
 other
+.coverage
