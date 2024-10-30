@@ -134,15 +134,15 @@ python expected_value.py --mover=basic-strategy --better=simple
 python expected_value.py --simulations=1_000_000
 ```
 
+![Expected Value (EV) Calculation](images/ev2.png)
+
+`Total profit: -332.0, Average profit: -0.000332`
+
 * Run on multiple cores:
 ```commandline
 python expected_value.py --simulations=1_000_000 --cores=10
 python expected_value.py --simulations=1_000_000 --cores=-1  # Use all available cores.
 ```
-
-![Expected Value (EV) Calculation](images/ev2.png)
-
-`Total profit: -332.0, Average profit: -0.000332`
 
 * Test your custom strategy:
 

@@ -145,7 +145,7 @@ def simulate_hand(action_class: action_strategies.BaseMover, betting_class: bett
                   cards: list[int], dealer_up_card: int,
                   dealer_down_card: int, shoe: list[int], initial_hand: bool,
                   splits_remaining: int, deck_number: int, dealer_peeks_for_blackjack: bool = True, das: bool = True,
-                  dealer_stands_soft_17: bool = True, surrender_allowed: bool = True) -> tuple[float, int]:
+                  dealer_stands_soft_17: bool = True, surrender_allowed: bool = True) -> tuple[float, int, int]:
     """
     Play one hand.
 
@@ -190,72 +190,72 @@ def simulate_hand(action_class: action_strategies.BaseMover, betting_class: bett
     if initial_hand:
         if dealer_peeks_for_blackjack:
             if dealer_has_blackjack and player_has_blackjack:  # Push
-                return (0 + insurance_profit) * bet, 0
+                return (0 + insurance_profit) * bet, 0, bet
             elif dealer_has_blackjack:  # Dealer blackjack
-                return (-1 + insurance_profit) * bet, 0
+                return (-1 + insurance_profit) * bet, 0, bet
             elif player_has_blackjack:  # Player blackjack
-                return (1 * 3 / 2 + insurance_profit) * bet, 0
+                return (1 * 3 / 2 + insurance_profit) * bet, 0, bet
         else:
             if player_has_blackjack and dealer_has_blackjack:
-                return (0 + insurance_profit) * bet, 0
+                return (0 + insurance_profit) * bet, 0, bet
             elif player_has_blackjack:
-                return (1 * 3 / 2 + insurance_profit) * bet, 0
+                return (1 * 3 / 2 + insurance_profit) * bet, 0, bet
 
     if action == "u" and can_surrender_now:
-        return (-.5 + insurance_profit) * bet, 0
+        return (-.5 + insurance_profit) * bet, 0, bet
 
     elif action == "s":
         dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)
         if player_loses_all_bets:
-            return (-1 + insurance_profit) * bet, 0
+            return (-1 + insurance_profit) * bet, 0, bet
         if initial_hand_value > dealer_value:
-            return (1 + insurance_profit) * bet, 0
+            return (1 + insurance_profit) * bet, 0, bet
         elif initial_hand_value < dealer_value:
-            return (-1 + insurance_profit) * bet, 0
-        return (0 + insurance_profit) * bet, 0
+            return (-1 + insurance_profit) * bet, 0, bet
+        return (0 + insurance_profit) * bet, 0, bet
 
     elif action == "d" and can_double:
         card = get_card_from_shoe(shoe)
         hand.add_card(card)
         if player_loses_all_bets:
-            return (-2 + insurance_profit) * bet, 0
+            return (-2 + insurance_profit) * bet, 0, bet
         if hand.value() > 21:
-            return (-2 + insurance_profit) * bet, 0
+            return (-2 + insurance_profit) * bet, 0, bet
         dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)
         if hand.value() > dealer_value:
-            return (+2 + insurance_profit) * bet, 0
+            return (+2 + insurance_profit) * bet, 0, bet
         elif hand.value() < dealer_value:
-            return (-2 + insurance_profit) * bet, 0
-        return (0 + insurance_profit) * bet, 0
+            return (-2 + insurance_profit) * bet, 0, bet
+        return (0 + insurance_profit) * bet, 0, bet
 
     elif action == "h":
         card = get_card_from_shoe(shoe)
         hand.add_card(card)
         if player_loses_all_bets:
-            return (-1 + insurance_profit) * bet, 0
+            return (-1 + insurance_profit) * bet, 0, bet
         if hand.value() > 21:
-            return (-1 + insurance_profit) * bet, 0
+            return (-1 + insurance_profit) * bet, 0, bet
         return (simulate_hand(action_class, betting_class, hand.cards, dealer_up_card, dealer_down_card, shoe,
                               False, splits_remaining, deck_number
-                              )[0] + insurance_profit) * bet, 0
+                              )[0] + insurance_profit) * bet, 0, bet
 
     elif action == "p" and can_split:
         hand1 = Hand([hand.cards[0]])
         hand2 = Hand([hand.cards[1]])
         card1 = get_card_from_shoe(shoe)
         hand1.add_card(card1)
-        profit1, splits_used1 = simulate_hand(action_class, betting_class, hand1.cards, dealer_up_card,
+        profit1, splits_used1, _ = simulate_hand(action_class, betting_class, hand1.cards, dealer_up_card,
                                               dealer_down_card, shoe, False,
                                               splits_remaining - 1, deck_number)
         card2 = get_card_from_shoe(shoe)
         hand2.add_card(card2)
-        profit2, splits_used2 = simulate_hand(action_class, betting_class, hand2.cards, dealer_up_card,
+        profit2, splits_used2, _ = simulate_hand(action_class, betting_class, hand2.cards, dealer_up_card,
                                               dealer_down_card, shoe, False,
                                               splits_remaining - 1 - splits_used1, deck_number)
         split_profit = profit1 + profit2
         if player_loses_all_bets:
             split_profit = -(2 + splits_used1 + splits_used2)
-        return (split_profit + insurance_profit) * bet, 1 + splits_used1 + splits_used2
+        return (split_profit + insurance_profit) * bet, 1 + splits_used1 + splits_used2, bet
 
     raise ValueError(f"invalid action: {action}.")
 
@@ -288,24 +288,31 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
     random.shuffle(shoe)
     profit = 0.
     profits_over_time = [profit]
+    percentage_profits_over_time = [0.]
     for i in range(simulations):
-        if print_info and i % 100_000 == 0:
+        if print_info and i % 10_000 == 0:
             print(f"Games played: {readable_number(i)}/{readable_number(simulations)}")
-        if len(shoe) < reshuffle_at:
-            shoe = starting_shoe.copy()
-            random.shuffle(shoe)
+        game_reward = 0.
+        money_bet = 0.
+        while len(shoe) >= reshuffle_at:
+            dealer_up_card = get_card_from_shoe(shoe)
+            dealer_down_card = get_card_from_shoe(shoe)
+            player_cards = [get_card_from_shoe(shoe), get_card_from_shoe(shoe)]
 
-        dealer_up_card = get_card_from_shoe(shoe)
-        dealer_down_card = get_card_from_shoe(shoe)
-        player_cards = [get_card_from_shoe(shoe), get_card_from_shoe(shoe)]
+            reward, _, initial_bet = simulate_hand(action_class, betting_class, player_cards, dealer_up_card, dealer_down_card, shoe,
+                                      True, 3, deck_number,
+                                      dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed)
+            game_reward += reward
+            money_bet += initial_bet
 
-        reward, _ = simulate_hand(action_class, betting_class, player_cards, dealer_up_card, dealer_down_card, shoe,
-                                  True, 3, deck_number,
-                                  dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed)
-        profit += reward
+        profit += game_reward
         profits_over_time.append(profit)
+        percentage_profits_over_time.append(game_reward / money_bet)
 
-    avg_profit = profit / simulations
+        shoe = starting_shoe.copy()
+        random.shuffle(shoe)
+
+    avg_profit = sum(percentage_profits_over_time[1:]) / len(percentage_profits_over_time[1:])
     if print_info:
         print(f"Total profit: {profit}, Average profit: {avg_profit}")
     if plot_profits:
@@ -371,11 +378,11 @@ def expected_value_multithreading(action_class: action_strategies.BaseMover, bet
         worker_pool.append(p)
     for p in worker_pool:
         p.join()  # Wait for all the workers to finish.
-    total_profit = 0.
+    avg_profit = 0.
     for _ in range(cores):
-        total_profit += core_results.get()
-    avg_profit = total_profit / cores
-    print(f"Total profit: {total_profit * (total_simulations // cores)}, Average profit: {avg_profit}")
+        avg_profit += core_results.get()
+    avg_profit /= cores
+    print(f"Average profit: {avg_profit}")
     return avg_profit
 
 
@@ -393,9 +400,9 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--better", default="card-count",
                         help='Use a predefined better. Can also be the name of the class of a user-defined better. '
                              '(possible values: card-count, simple; default: card-count)')
-    parser.add_argument("-s", "--simulations", default=500_000, type=int,
+    parser.add_argument("-s", "--simulations", default=100_000, type=int,
                         help='How many simulations to run. Running more simulations gives more accurate '
-                             'results but they are slower to calculate. (default: 500,000)')
+                             'results but they are slower to calculate. (default: 100,000)')
     parser.add_argument("--decks", default=6, type=int, help='How many decks the shoe starts with. (default: 6)')
     parser.add_argument("--deck-penetration", default=.25, type=float,
                         help='When to reshuffle the shoe. Reshuffles when cards remaining < starting cards'

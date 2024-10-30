@@ -16,7 +16,7 @@ Command line options
                           values: card-count, simple; default: card-count)
     -s SIMULATIONS, --simulations SIMULATIONS
                           How many simulations to run. Running more simulations gives more accurate results but they are
-                          slower to calculate. (default: 500,000)
+                          slower to calculate. (default: 100,000)
     --decks DECKS         How many decks the shoe starts with. (default: 6)
     --deck-penetration DECK_PENETRATION
                           When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck
