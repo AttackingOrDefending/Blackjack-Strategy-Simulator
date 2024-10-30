@@ -245,13 +245,13 @@ def simulate_hand(action_class: action_strategies.BaseMover, betting_class: bett
         card1 = get_card_from_shoe(shoe)
         hand1.add_card(card1)
         profit1, splits_used1, _ = simulate_hand(action_class, betting_class, hand1.cards, dealer_up_card,
-                                              dealer_down_card, shoe, False,
-                                              splits_remaining - 1, deck_number)
+                                                 dealer_down_card, shoe, False,
+                                                 splits_remaining - 1, deck_number)
         card2 = get_card_from_shoe(shoe)
         hand2.add_card(card2)
         profit2, splits_used2, _ = simulate_hand(action_class, betting_class, hand2.cards, dealer_up_card,
-                                              dealer_down_card, shoe, False,
-                                              splits_remaining - 1 - splits_used1, deck_number)
+                                                 dealer_down_card, shoe, False,
+                                                 splits_remaining - 1 - splits_used1, deck_number)
         split_profit = profit1 + profit2
         if player_loses_all_bets:
             split_profit = -(2 + splits_used1 + splits_used2)
@@ -299,9 +299,9 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
             dealer_down_card = get_card_from_shoe(shoe)
             player_cards = [get_card_from_shoe(shoe), get_card_from_shoe(shoe)]
 
-            reward, _, initial_bet = simulate_hand(action_class, betting_class, player_cards, dealer_up_card, dealer_down_card, shoe,
-                                      True, 3, deck_number,
-                                      dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed)
+            reward, _, initial_bet = simulate_hand(action_class, betting_class, player_cards, dealer_up_card,
+                                                   dealer_down_card, shoe, True, 3, deck_number,
+                                                   dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed)
             game_reward += reward
             money_bet += initial_bet
 
