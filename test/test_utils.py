@@ -2,7 +2,7 @@
 from utils import short_to_long_action, long_to_short_action, readable_number, list_range_str
 
 
-def test_utils():
+def test_utils() -> None:
     """Test the utilities."""
     assert short_to_long_action("s") == "stand"
     assert short_to_long_action("h") == "hit"
