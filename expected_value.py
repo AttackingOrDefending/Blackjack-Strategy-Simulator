@@ -144,11 +144,11 @@ def play_dealer(dealer_cards: Iterable[int], shoe: list[int], dealer_stands_soft
 
 
 def play_hand(action_class: action_strategies.BaseMover,
-                  hand_cards: list[list[int]], dealer_up_card: int, dealer_down_card: int, shoe: list[int],
-                  splits_remaining: int, deck_number: int, dealer_peeks_for_blackjack: bool = True, das: bool = True,
-                  dealer_stands_soft_17: bool = True) -> list[list[int]]:
+              hand_cards: list[list[int]], dealer_up_card: int, dealer_down_card: int, shoe: list[int],
+              splits_remaining: int, deck_number: int, dealer_peeks_for_blackjack: bool = True, das: bool = True,
+              dealer_stands_soft_17: bool = True) -> list[list[int]]:
     """
-    Play one hand.
+    Play hands but don't play the dealer.
 
     :param action_class: The class that chooses the action.
     :param hand_cards: The cards in our hand.
@@ -160,7 +160,7 @@ def play_hand(action_class: action_strategies.BaseMover,
     :param dealer_peeks_for_blackjack: Whether the dealer peeks for blackjack.
     :param das: Whether we can double after splitting.
     :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
-    :return: The profit/loss from the hand, and how many times we split.
+    :return: The hands played out.
     """
     done_hands = []
     for hand_index, cards in enumerate(hand_cards):
@@ -185,8 +185,8 @@ def play_hand(action_class: action_strategies.BaseMover,
         elif action == "d" and can_double:
             card = get_card_from_shoe(shoe)
             hand.add_card(card)
-            done_hands.append(cards)
-            done_hands.append(cards)  # Add the same hand twice instead of doubling the bet.
+            done_hands.append(hand.cards)
+            done_hands.append(hand.cards)  # Add the same hand twice instead of doubling the bet.
 
         elif action == "h":
             card = get_card_from_shoe(shoe)
@@ -202,8 +202,8 @@ def play_hand(action_class: action_strategies.BaseMover,
             hand1.add_card(card1)
             card2 = get_card_from_shoe(shoe)
             hand2.add_card(card2)
-            done_hands.extend(play_hand(action_class, [hand1.cards, hand2.cards] + hand_cards[hand_index + 1:], dealer_up_card, dealer_down_card,
-                                        shoe, splits_remaining - 1, deck_number,
+            done_hands.extend(play_hand(action_class, [hand1.cards, hand2.cards] + hand_cards[hand_index + 1:],
+                                        dealer_up_card, dealer_down_card, shoe, splits_remaining - 1, deck_number,
                                         dealer_peeks_for_blackjack, das, dealer_stands_soft_17))
             break
 
@@ -336,7 +336,7 @@ def simulate_hand(action_class: action_strategies.BaseMover,
         card2 = get_card_from_shoe(shoe)
         hand2.add_card(card2)
         all_hands = play_hand(action_class, [hand1.cards, hand2.cards], dealer_up_card, dealer_down_card, shoe,
-                                splits_remaining - 1, deck_number, dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
+                              splits_remaining - 1, deck_number, dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
         if player_loses_all_bets:
             return -len(all_hands) + insurance_profit
         dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)

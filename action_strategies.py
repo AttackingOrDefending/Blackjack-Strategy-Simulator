@@ -242,9 +242,11 @@ class BasicStrategyDeviationsMover(BaseMover):
                 action = "dh"
             if hand_value == 11 and dealer_up_card == 11 and true_count >= 1:
                 action = "dh"
-            if hand_value == 20 and len(hand_cards) == 2 and hand_cards[0] == 10 and dealer_up_card == 5 and true_count >= 5 and can_split:
+            if (hand_value == 20 and len(hand_cards) == 2 and hand_cards[0] == 10 and dealer_up_card == 5
+                    and true_count >= 5 and can_split):
                 action = "ps"
-            if hand_value == 20 and len(hand_cards) == 2 and hand_cards[0] == 10 and dealer_up_card == 6 and true_count >= 4 and can_split:
+            if (hand_value == 20 and len(hand_cards) == 2 and hand_cards[0] == 10 and dealer_up_card == 6
+                    and true_count >= 4 and can_split):
                 action = "ps"
             if hand_value == 14 and dealer_up_card == 10 and true_count >= 3:
                 action = "u" + action

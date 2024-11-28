@@ -72,6 +72,8 @@ Simulate one hand
 
 .. autofunction:: expected_value.simulate_hand
 
+.. autofunction:: expected_value.play_hand
+
 .. autofunction:: expected_value.get_mover_and_better
 
 .. autofunction:: expected_value.play_dealer
