@@ -108,6 +108,8 @@ def get_mover_and_better(mover_name: str, better_name: str
              (8, 9): "data/6deck_s17_das_peek_tc_plus_8.csv",
              (9, 10): "data/6deck_s17_das_peek_tc_plus_9.csv",
              (10, 1000): "data/6deck_s17_das_peek_tc_plus_10.csv"})
+    elif mover_name == "basic-strategy-deviations":
+        mover_class = action_strategies.BasicStrategyDeviationsMover("data/6deck_s17_das_peek_basic_strategy.csv")
     elif mover_name == "basic-strategy":
         mover_class = action_strategies.BasicStrategyMover("data/6deck_s17_das_peek_basic_strategy.csv")
     elif mover_name == "perfect":
@@ -135,27 +137,94 @@ def play_dealer(dealer_cards: Iterable[int], shoe: list[int], dealer_stands_soft
     :return: The final value of the dealer's hand. If the dealer busted, the value is 0.
     """
     dealer = Hand(dealer_cards)
-    while dealer.value() < 17 or not dealer_stands_soft_17 and dealer.value() == 17 and 11 in dealer_cards:
+    while dealer.value() < 17 or not dealer_stands_soft_17 and dealer.value() == 17 and dealer.aces():
         dealer.add_card(get_card_from_shoe(shoe))
     dealer_value = dealer.value()
     return dealer_value if dealer_value <= 21 else 0
 
 
-def simulate_hand(action_class: action_strategies.BaseMover, betting_class: betting_strategies.BaseBetter,
-                  cards: list[int], dealer_up_card: int,
-                  dealer_down_card: int, shoe: list[int], initial_hand: bool,
+def play_hand(action_class: action_strategies.BaseMover,
+                  hand_cards: list[list[int]], dealer_up_card: int, dealer_down_card: int, shoe: list[int],
                   splits_remaining: int, deck_number: int, dealer_peeks_for_blackjack: bool = True, das: bool = True,
-                  dealer_stands_soft_17: bool = True, surrender_allowed: bool = True) -> tuple[float, int, int]:
+                  dealer_stands_soft_17: bool = True) -> list[list[int]]:
     """
     Play one hand.
 
     :param action_class: The class that chooses the action.
-    :param betting_class: The class that chooses the bet.
+    :param hand_cards: The cards in our hand.
+    :param dealer_up_card: The dealer's up card.
+    :param dealer_down_card: The dealer's down card.
+    :param shoe: The shoe.
+    :param splits_remaining: How many more splits we can do.
+    :param deck_number: The number of decks in the initial shoe.
+    :param dealer_peeks_for_blackjack: Whether the dealer peeks for blackjack.
+    :param das: Whether we can double after splitting.
+    :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
+    :return: The profit/loss from the hand, and how many times we split.
+    """
+    done_hands = []
+    for hand_index, cards in enumerate(hand_cards):
+        if Hand(cards).value() > 21:
+            done_hands.append(cards)
+            continue
+        can_split = (splits_remaining > 0 and len(cards) == 2 and cards[0] == cards[1]
+                     and (not cards[0] == 11 or splits_remaining == 3))
+        can_double = len(cards) == 2 and (das or splits_remaining == 3)
+        cards_seen = get_cards_seen(deck_number, shoe)
+        cards_seen.remove(dealer_down_card)
+        hand = Hand(cards)
+        initial_hand_value, initial_hand_has_ace = hand.value_ace()
+        action, insure = action_class.get_move(initial_hand_value, bool(initial_hand_has_ace), dealer_up_card,
+                                               can_double,
+                                               can_split, False, False, cards, cards_seen, deck_number,
+                                               dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
+
+        if action == "s":
+            done_hands.append(cards)
+
+        elif action == "d" and can_double:
+            card = get_card_from_shoe(shoe)
+            hand.add_card(card)
+            done_hands.append(cards)
+            done_hands.append(cards)  # Add the same hand twice instead of doubling the bet.
+
+        elif action == "h":
+            card = get_card_from_shoe(shoe)
+            hand.add_card(card)
+            done_hands.append(play_hand(action_class, [hand.cards], dealer_up_card, dealer_down_card, shoe,
+                                        0, deck_number, dealer_peeks_for_blackjack, das,
+                                        dealer_stands_soft_17)[0])
+
+        elif action == "p" and can_split:
+            hand1 = Hand([hand.cards[0]])
+            hand2 = Hand([hand.cards[1]])
+            card1 = get_card_from_shoe(shoe)
+            hand1.add_card(card1)
+            card2 = get_card_from_shoe(shoe)
+            hand2.add_card(card2)
+            done_hands.extend(play_hand(action_class, [hand1.cards, hand2.cards] + hand_cards[hand_index + 1:], dealer_up_card, dealer_down_card,
+                                        shoe, splits_remaining - 1, deck_number,
+                                        dealer_peeks_for_blackjack, das, dealer_stands_soft_17))
+            break
+
+        else:
+            raise ValueError(f"invalid action: {action}.")
+    return done_hands
+
+
+def simulate_hand(action_class: action_strategies.BaseMover,
+                  cards: list[int], dealer_up_card: int,
+                  dealer_down_card: int, shoe: list[int],
+                  splits_remaining: int, deck_number: int, dealer_peeks_for_blackjack: bool = True, das: bool = True,
+                  dealer_stands_soft_17: bool = True, surrender_allowed: bool = True) -> float:
+    """
+    Play one hand.
+
+    :param action_class: The class that chooses the action.
     :param cards: The cards in our hand.
     :param dealer_up_card: The dealer's up card.
     :param dealer_down_card: The dealer's down card.
     :param shoe: The shoe.
-    :param initial_hand: Whether this is our initial hand and haven't gotten any other card.
     :param splits_remaining: How many more splits we can do.
     :param deck_number: The number of decks in the initial shoe.
     :param dealer_peeks_for_blackjack: Whether the dealer peeks for blackjack.
@@ -167,17 +236,14 @@ def simulate_hand(action_class: action_strategies.BaseMover, betting_class: bett
     can_split = (splits_remaining > 0 and len(cards) == 2 and cards[0] == cards[1]
                  and (not cards[0] == 11 or splits_remaining == 3))
     can_double = len(cards) == 2 and (das or splits_remaining == 3)
-    can_surrender_now = initial_hand and surrender_allowed
-    can_insure = initial_hand and dealer_up_card == 11
-    bet = 1
+    can_surrender_now = surrender_allowed
+    can_insure = dealer_up_card == 11
     insurance_profit = 0.
     dealer_has_blackjack = dealer_up_card + dealer_down_card == 21
-    player_has_blackjack = initial_hand and cards[0] + cards[1] == 21
+    player_has_blackjack = cards[0] + cards[1] == 21
     player_loses_all_bets = dealer_has_blackjack and not dealer_peeks_for_blackjack and not player_has_blackjack
     cards_seen = get_cards_seen(deck_number, shoe)
     cards_seen.remove(dealer_down_card)
-    if initial_hand:
-        bet = betting_class.get_bet(cards_seen, deck_number)
     hand = Hand(cards)
     initial_hand_value, initial_hand_has_ace = hand.value_ace()
     action, insure = action_class.get_move(initial_hand_value, bool(initial_hand_has_ace), dealer_up_card, can_double,
@@ -187,75 +253,101 @@ def simulate_hand(action_class: action_strategies.BaseMover, betting_class: bett
     if insure and can_insure:
         insurance_profit = 1 if dealer_down_card == 10 else -.5
 
-    if initial_hand:
-        if dealer_peeks_for_blackjack:
-            if dealer_has_blackjack and player_has_blackjack:  # Push
-                return (0 + insurance_profit) * bet, 0, bet
-            elif dealer_has_blackjack:  # Dealer blackjack
-                return (-1 + insurance_profit) * bet, 0, bet
-            elif player_has_blackjack:  # Player blackjack
-                return (1 * 3 / 2 + insurance_profit) * bet, 0, bet
-        else:
-            if player_has_blackjack and dealer_has_blackjack:
-                return (0 + insurance_profit) * bet, 0, bet
-            elif player_has_blackjack:
-                return (1 * 3 / 2 + insurance_profit) * bet, 0, bet
+    if dealer_peeks_for_blackjack:
+        if dealer_has_blackjack and player_has_blackjack:  # Push
+            return 0 + insurance_profit
+        elif dealer_has_blackjack:  # Dealer blackjack
+            return -1 + insurance_profit
+        elif player_has_blackjack:  # Player blackjack
+            return 1 * 3 / 2 + insurance_profit
+    else:
+        if player_has_blackjack and dealer_has_blackjack:
+            return 0 + insurance_profit
+        elif player_has_blackjack:
+            return 1 * 3 / 2 + insurance_profit
 
     if action == "u" and can_surrender_now:
-        return (-.5 + insurance_profit) * bet, 0, bet
+        return -.5 + insurance_profit
 
     elif action == "s":
         dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)
         if player_loses_all_bets:
-            return (-1 + insurance_profit) * bet, 0, bet
+            return -1 + insurance_profit
         if initial_hand_value > dealer_value:
-            return (1 + insurance_profit) * bet, 0, bet
+            return 1 + insurance_profit
         elif initial_hand_value < dealer_value:
-            return (-1 + insurance_profit) * bet, 0, bet
-        return (0 + insurance_profit) * bet, 0, bet
+            return -1 + insurance_profit
+        return 0 + insurance_profit
 
     elif action == "d" and can_double:
         card = get_card_from_shoe(shoe)
         hand.add_card(card)
         if player_loses_all_bets:
-            return (-2 + insurance_profit) * bet, 0, bet
+            return -2 + insurance_profit
         if hand.value() > 21:
-            return (-2 + insurance_profit) * bet, 0, bet
+            return -2 + insurance_profit
         dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)
         if hand.value() > dealer_value:
-            return (+2 + insurance_profit) * bet, 0, bet
+            return +2 + insurance_profit
         elif hand.value() < dealer_value:
-            return (-2 + insurance_profit) * bet, 0, bet
-        return (0 + insurance_profit) * bet, 0, bet
+            return -2 + insurance_profit
+        return 0 + insurance_profit
 
     elif action == "h":
         card = get_card_from_shoe(shoe)
         hand.add_card(card)
         if player_loses_all_bets:
-            return (-1 + insurance_profit) * bet, 0, bet
+            return -1 + insurance_profit
         if hand.value() > 21:
-            return (-1 + insurance_profit) * bet, 0, bet
-        return (simulate_hand(action_class, betting_class, hand.cards, dealer_up_card, dealer_down_card, shoe,
-                              False, splits_remaining, deck_number
-                              )[0] + insurance_profit) * bet, 0, bet
+            return -1 + insurance_profit
+        hand_cards = play_hand(action_class, [hand.cards], dealer_up_card, dealer_down_card, shoe,
+                                 splits_remaining, deck_number, dealer_peeks_for_blackjack, das, dealer_stands_soft_17)[0]
+        hand = Hand(hand_cards)
+        dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)
+        if hand.value() > 21 or dealer_value > hand.value():
+            return -1 + insurance_profit
+        elif hand.value() > dealer_value:
+            return 1 + insurance_profit
+        return 0 + insurance_profit
 
     elif action == "p" and can_split:
         hand1 = Hand([hand.cards[0]])
         hand2 = Hand([hand.cards[1]])
+        if hand.cards[0] == 11:
+            card = get_card_from_shoe(shoe)
+            hand1.add_card(card)
+            card = get_card_from_shoe(shoe)
+            hand2.add_card(card)
+            if player_loses_all_bets:
+                return -2 + insurance_profit
+            dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)
+            split_profit = 0
+            if hand1.value() > 21 or dealer_value > hand1.value():
+                split_profit -= 1
+            elif hand1.value() > dealer_value:
+                split_profit += 1
+            if hand2.value() > 21 or dealer_value > hand2.value():
+                split_profit -= 1
+            elif hand2.value() > dealer_value:
+                split_profit += 1
+            return split_profit + insurance_profit
         card1 = get_card_from_shoe(shoe)
         hand1.add_card(card1)
-        profit1, splits_used1, _ = simulate_hand(action_class, betting_class, hand1.cards, dealer_up_card,
-                                                 dealer_down_card, shoe, False,
-                                                 splits_remaining - 1, deck_number)
         card2 = get_card_from_shoe(shoe)
         hand2.add_card(card2)
-        profit2, splits_used2, _ = simulate_hand(action_class, betting_class, hand2.cards, dealer_up_card,
-                                                 dealer_down_card, shoe, False,
-                                                 splits_remaining - 1 - splits_used1, deck_number)
-        split_profit = profit1 + profit2
+        all_hands = play_hand(action_class, [hand1.cards, hand2.cards], dealer_up_card, dealer_down_card, shoe,
+                                splits_remaining - 1, deck_number, dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
         if player_loses_all_bets:
-            split_profit = -(2 + splits_used1 + splits_used2)
-        return (split_profit + insurance_profit) * bet, 1 + splits_used1 + splits_used2, bet
+            return -len(all_hands) + insurance_profit
+        dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)
+        split_profit = 0
+        for hand_cards in all_hands:
+            hand = Hand(hand_cards)
+            if hand.value() > 21 or dealer_value > hand.value():
+                split_profit -= 1
+            elif hand.value() > dealer_value:
+                split_profit += 1
+        return split_profit + insurance_profit
 
     raise ValueError(f"invalid action: {action}.")
 
@@ -289,6 +381,7 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
     profit = 0.
     profits_over_time = [profit]
     percentage_profits_over_time = [0.]
+    bets = []
     for i in range(simulations):
         if print_info and i % 10_000 == 0:
             print(f"Games played: {readable_number(i)}/{readable_number(simulations)}")
@@ -299,11 +392,16 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
             dealer_down_card = get_card_from_shoe(shoe)
             player_cards = [get_card_from_shoe(shoe), get_card_from_shoe(shoe)]
 
-            reward, _, initial_bet = simulate_hand(action_class, betting_class, player_cards, dealer_up_card,
-                                                   dealer_down_card, shoe, True, 3, deck_number,
-                                                   dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed)
+            cards_seen = get_cards_seen(deck_number, shoe)
+            cards_seen.remove(dealer_down_card)
+            initial_bet = betting_class.get_bet(cards_seen, deck_number)
+            reward = simulate_hand(action_class, player_cards, dealer_up_card,
+                                   dealer_down_card, shoe, 3, deck_number,
+                                   dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed)
+            reward *= initial_bet
             game_reward += reward
             money_bet += initial_bet
+            bets.append(initial_bet)
 
         profit += game_reward
         profits_over_time.append(profit)
@@ -314,7 +412,7 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
 
     avg_profit = sum(percentage_profits_over_time[1:]) / len(percentage_profits_over_time[1:])
     if print_info:
-        print(f"Total profit: {profit}, Average profit: {avg_profit}")
+        print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {sum(bets) / len(bets)}")
     if plot_profits:
         plt.plot(profits_over_time, label="Total profit")
         plt.xlabel("Games played")
@@ -396,7 +494,8 @@ if __name__ == "__main__":
                         help='How many cores to use in the calculation. (default: 1, use -1 for all cores)')
     parser.add_argument("-m", "--mover", default="card-count",
                         help='Use a predefined mover. Can also be the name of the class of a user-defined mover. '
-                             '(possible values: card-count, basic-strategy, perfect, simple; default: card-count)')
+                             '(possible values: card-count, basic-strategy-deviations, basic-strategy, perfect, simple; '
+                             'default: card-count)')
     parser.add_argument("-b", "--better", default="card-count",
                         help='Use a predefined better. Can also be the name of the class of a user-defined better. '
                              '(possible values: card-count, simple; default: card-count)')

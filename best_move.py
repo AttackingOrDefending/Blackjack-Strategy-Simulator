@@ -333,7 +333,7 @@ def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: t
                     counts_copy2[card2] -= 1
                     if cards[0] == card:
                         profit += (perfect_mover_cache((cards[0], card), dealer_up_card,
-                                                       create_deck_from_counts_cache(counts_copy), can_double and das,
+                                                       create_deck_from_counts_cache(counts_copy2), can_double and das,
                                                        False, False,
                                                        max_splits, dealer_peeks_for_blackjack, das,
                                                        dealer_stands_soft_17)[0]
@@ -345,7 +345,7 @@ def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: t
                                    ) * (probabilities[card] * probabilities_copy[card2])
                     else:
                         profit += (perfect_mover_cache((cards[0], card), dealer_up_card,
-                                                       create_deck_from_counts_cache(counts_copy), can_double and das,
+                                                       create_deck_from_counts_cache(counts_copy2), can_double and das,
                                                        False, False, 0,
                                                        dealer_peeks_for_blackjack, das, dealer_stands_soft_17)[0]
                                    + perfect_mover_cache((cards[0], card2), dealer_up_card,
