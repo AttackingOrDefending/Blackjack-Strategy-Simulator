@@ -38,7 +38,7 @@ class CardCountBetter(BaseBetter):
     @staticmethod
     def get_bet(cards_seen: list[int], deck_number: int) -> int:
         """
-        Bet true_count * 4 if true_count >= +1 else 1. Cap at 15 (using a 1-15 spread).
+        Bet true_count * 3 if true_count >= +1 else 1. Cap at 15 (using a 1-15 spread).
 
         :param cards_seen: The cards we have already seen from the shoe. Used when card counting.
         :param deck_number: The number of decks in the starting shoe.
