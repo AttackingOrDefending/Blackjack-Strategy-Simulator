@@ -301,7 +301,7 @@ def simulate_hand(action_class: action_strategies.BaseMover,
         if hand.value() > 21:
             return -1 + insurance_profit
         hand_cards = play_hand(action_class, [hand.cards], dealer_up_card, dealer_down_card, shoe,
-                                 splits_remaining, deck_number, dealer_peeks_for_blackjack, das, dealer_stands_soft_17)[0]
+                               splits_remaining, deck_number, dealer_peeks_for_blackjack, das, dealer_stands_soft_17)[0]
         hand = Hand(hand_cards)
         dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)
         if hand.value() > 21 or dealer_value > hand.value():
