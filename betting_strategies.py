@@ -38,15 +38,15 @@ class CardCountBetter(BaseBetter):
     @staticmethod
     def get_bet(cards_seen: list[int], deck_number: int) -> int:
         """
-        Bet true_count - 1 if true_count >= +2 else 1.
+        Bet true_count * 3 if true_count >= +1 else 1. Cap at 15 (using a 1-15 spread).
 
         :param cards_seen: The cards we have already seen from the shoe. Used when card counting.
         :param deck_number: The number of decks in the starting shoe.
         :return: How much money to bet.
         """
         running_count = get_hilo_running_count(cards_seen)
-        cards_left = deck_number * 52 - len(cards_seen)
+        cards_left = deck_number * 52 - len(cards_seen) - 1
         true_count = running_count / (cards_left / 52)
-        if true_count >= 2:
-            return int(true_count - 1)
+        if true_count >= 1:
+            return min(max(int(true_count * 3), 1), 15)
         return 1

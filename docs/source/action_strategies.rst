@@ -26,6 +26,9 @@ Pre-built movers
 .. autoclass:: action_strategies.SimpleMover
     :members:
 
+.. autoclass:: action_strategies.BasicStrategyDeviationsMover
+    :members:
+
 .. autoclass:: action_strategies.BasicStrategyMover
     :members:
 

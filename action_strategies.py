@@ -143,6 +143,132 @@ class BasicStrategyMover(BaseMover):
         return action[0], insure
 
 
+class BasicStrategyDeviationsMover(BaseMover):
+    """Move according to the basic strategy with the most common deviations."""
+
+    def __init__(self, filename: str) -> None:
+        """
+        Get the move to play for each hand-dealer combination.
+
+        :param filename: The file where the basic strategy is stored.
+        """
+        self.filename = filename
+        self.no_ace = {k: {d: "s" for d in range(2, 12)} for k in range(22)}
+        self.ace = {k: {d: "s" for d in range(2, 12)} for k in range(22)}
+        self.split = {k: {d: "s" for d in range(2, 12)} for k in range(12)}
+        self.read_file()
+
+    def read_file(self) -> None:
+        """Read the file with the basic strategy with the most common deviations."""
+        with open(self.filename, newline='') as csv_file:
+            reader = csv.reader(csv_file, delimiter=',')
+            for row in reader:
+                identifier = row[0]
+                hand_value = int(identifier[1:])
+                column = 1
+                if identifier.startswith("n"):
+                    for dealer_up_card in range(2, 12):
+                        self.no_ace[hand_value][dealer_up_card] = row[column]
+                        column += 1
+                elif identifier.startswith("a"):
+                    for dealer_up_card in range(2, 12):
+                        self.ace[hand_value][dealer_up_card] = row[column]
+                        column += 1
+                elif identifier.startswith("s"):
+                    for dealer_up_card in range(2, 12):
+                        self.split[hand_value][dealer_up_card] = row[column]
+                        column += 1
+                else:
+                    raise ValueError
+
+    def get_move(self, hand_value: int, hand_has_ace: bool, dealer_up_card: int,  # type: ignore[override]
+                 can_double: bool, can_split: bool, can_surrender: bool, can_insure: bool, hand_cards: list[int],
+                 cards_seen: list[int], deck_number: int, dealer_peeks_for_blackjack: bool, das: bool,
+                 dealer_stands_soft_17: bool) -> tuple[str, bool]:
+        """
+        Get the move to play from basic strategy.
+
+        :param hand_value: The value of the hand (e.g. 18).
+        :param hand_has_ace: Whether the hand has an ace that is counted as 11.
+        :param dealer_up_card: The dealer's up card.
+        :param can_double: Whether we can double.
+        :param can_split: Whether we can split.
+        :param can_surrender: Whether we can surrender.
+        :param can_insure: Whether we can take insurance.
+        :param hand_cards: The cards in our hand (e.g. 8, 7, 3).
+        :param cards_seen: The cards we have already seen from the shoe. Used when card counting.
+        :param deck_number: The number of decks in the starting shoe.
+        :param dealer_peeks_for_blackjack: Whether the dealer peeks for blackjack.
+        :param das: Whether we can double after splitting.
+        :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
+        :return: The action to do, and whether to take insurance.
+        """
+        true_count = get_hilo_running_count(cards_seen) / (deck_number - (len(cards_seen) + 1) / 52)
+        insure = False
+        if can_split:
+            card = hand_cards[0]
+            action = self.split[card][dealer_up_card]
+        elif hand_has_ace:
+            action = self.ace[hand_value][dealer_up_card]
+        else:
+            action = self.no_ace[hand_value][dealer_up_card]
+        if can_insure and action[0] == "i":
+            insure = True
+
+        if hand_has_ace is False:
+            if hand_value == 12 and dealer_up_card == 2 and true_count >= 3:
+                action = "s"
+            if hand_value == 12 and dealer_up_card == 3 and true_count >= 2:
+                action = "s"
+            if hand_value == 12 and dealer_up_card == 4 and true_count < 0:
+                action = "h"
+            if hand_value == 12 and dealer_up_card == 5 and true_count < -2:
+                action = "h"
+            if hand_value == 12 and dealer_up_card == 6 and true_count < -1:
+                action = "h"
+            if hand_value == 13 and dealer_up_card == 2 and true_count < -1:
+                action = "h"
+            if hand_value == 13 and dealer_up_card == 3 and true_count < -2:
+                action = "h"
+            if hand_value == 15 and dealer_up_card == 10 and true_count >= 4:
+                action = "us"
+            if hand_value == 16 and dealer_up_card == 10 and true_count >= 1:
+                action = "us"
+            if hand_value == 16 and dealer_up_card == 9 and true_count >= 5:
+                action = "us"
+            if hand_value == 10 and dealer_up_card == 10 and true_count >= 4:
+                action = "dh"
+            if hand_value == 10 and dealer_up_card == 11 and true_count >= 4:
+                action = "dh"
+            if hand_value == 11 and dealer_up_card == 11 and true_count >= 1:
+                action = "dh"
+            if (hand_value == 20 and len(hand_cards) == 2 and hand_cards[0] == 10 and dealer_up_card == 5
+                    and true_count >= 5 and can_split):
+                action = "ps"
+            if (hand_value == 20 and len(hand_cards) == 2 and hand_cards[0] == 10 and dealer_up_card == 6
+                    and true_count >= 4 and can_split):
+                action = "ps"
+            if hand_value == 14 and dealer_up_card == 10 and true_count >= 3:
+                action = "u" + action
+            if hand_value == 15 and dealer_up_card == 10 and true_count < 0:
+                action = "h"
+            if hand_value == 15 and dealer_up_card == 9 and true_count >= 2:
+                action = "u" + action
+            if hand_value == 15 and dealer_up_card == 11 and true_count >= 1:
+                action = "u" + action
+        if true_count >= 3:
+            action = "i" + action
+
+        if action[0] == "i":
+            action = action[1:]
+        if action[0] == "u" and not can_surrender:
+            action = action[1:]
+        if action[0] == "d" and not can_double:
+            action = action[1:]
+
+        return action[0], insure
+
+
 class CardCountMover(BaseMover):
     """Move according to the basic strategy and the deviations using the card count."""
 
@@ -220,7 +346,7 @@ class CardCountMover(BaseMover):
         :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
         :return: The action to do, and whether to take insurance.
         """
-        true_count = get_hilo_running_count(cards_seen) / (deck_number - len(cards_seen) / 52)
+        true_count = get_hilo_running_count(cards_seen) / (deck_number - (len(cards_seen) + 1) / 52)
 
         for min_tc, max_tc in self.filenames:
             if min_tc <= true_count < max_tc:

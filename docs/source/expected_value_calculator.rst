@@ -10,7 +10,8 @@ Command line options
     --cores CORES         How many cores to use in the calculation. (default: 1, use -1 for all cores)
     -m MOVER, --mover MOVER
                           Use a predefined mover. Can also be the name of the class of a user-defined mover. (possible
-                          values: card-count, basic-strategy, perfect, simple; default: card-count)
+                          values: card-count, basic-strategy-deviations, basic-strategy, perfect, simple; default:
+                          card-count)
     -b BETTER, --better BETTER
                           Use a predefined better. Can also be the name of the class of a user-defined better. (possible
                           values: card-count, simple; default: card-count)
@@ -70,6 +71,8 @@ Simulate one hand
 -----------------
 
 .. autofunction:: expected_value.simulate_hand
+
+.. autofunction:: expected_value.play_hand
 
 .. autofunction:: expected_value.get_mover_and_better
 
