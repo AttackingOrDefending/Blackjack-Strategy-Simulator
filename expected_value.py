@@ -356,7 +356,8 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
                    simulations: int, deck_number: int = 6, shoe_penetration: float = .25,
                    dealer_peeks_for_blackjack: bool = True, das: bool = True,
                    dealer_stands_soft_17: bool = True, surrender_allowed: bool = True,
-                   plot_profits: bool = True, print_info: bool = True) -> float:
+                   units: int = 200, hands_played: int = 1000,
+                   plot_profits: bool = True, print_info: bool = True) -> tuple[float, float, float, float]:
     """
     Estimate the expected value of a strategy.
 
@@ -369,17 +370,20 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
     :param das: Whether we can double after splitting.
     :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
     :param surrender_allowed: Whether the game rules allow surrendering.
+    :param units: The number of units in total.
+    :param hands_played: How many hands to play before checking the risk of ruin.
     :param plot_profits: Whether a plot showing how the profit changed over time should be made at the end.
     :param print_info: Whether to print information about the progress of the simulation. Disabled for multithreading.
-    :return: The average return of a hand.
+    :return: The total return, the average return of a game, the average bet size, and the risk of ruin.
     """
     starting_shoe = DECK * deck_number
     starting_number = len(starting_shoe)
-    reshuffle_at = starting_number * shoe_penetration
+    reshuffle_at = int(starting_number * shoe_penetration)
     shoe = starting_shoe.copy()
     random.shuffle(shoe)
     profit = 0.
-    profits_over_time = [profit]
+    profits_over_time_game = [profit]
+    profits_over_time_hand = [profit]
     percentage_profits_over_time = [0.]
     bets = []
     for i in range(simulations):
@@ -399,36 +403,43 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
                                    dealer_down_card, shoe, 3, deck_number,
                                    dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed)
             reward *= initial_bet
+            profit += reward
             game_reward += reward
             money_bet += initial_bet
             bets.append(initial_bet)
+            profits_over_time_hand.append(profit)
 
-        profit += game_reward
-        profits_over_time.append(profit)
+        profits_over_time_game.append(profit)
         percentage_profits_over_time.append(game_reward / money_bet)
 
         shoe = starting_shoe.copy()
         random.shuffle(shoe)
 
     avg_profit = sum(percentage_profits_over_time[1:]) / len(percentage_profits_over_time[1:])
+    avg_bet = sum(bets) / len(bets)
+    risk_of_ruin_list = [(1 if p - profits_over_time_hand[i - hands_played] <= -units else 0)
+                         for i, p in enumerate(profits_over_time_hand) if i % hands_played == 0 and i != 0]
+    risk_of_ruin = sum(risk_of_ruin_list) / len(risk_of_ruin_list)
     if print_info:
-        print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {sum(bets) / len(bets)}")
+        print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {avg_bet}, Risk of ruin: {risk_of_ruin}")
     if plot_profits:
-        plt.plot(profits_over_time, label="Total profit")
+        plt.plot(profits_over_time_game, label="Total profit")
         plt.xlabel("Games played")
         plt.ylabel("Total profit")
         plt.title("Profits over time")
         plt.legend()
         plt.show()
 
-    return avg_profit
+    return profit, avg_profit, avg_bet, risk_of_ruin
 
 
-def _expected_value_multithreading_wrapper(results: multiprocessing.Queue[float], action_class: action_strategies.BaseMover,
+def _expected_value_multithreading_wrapper(results: multiprocessing.Queue[tuple[float, float, float, float]],
+                                           action_class: action_strategies.BaseMover,
                                            betting_class: betting_strategies.BaseBetter,
                                            simulations: int, deck_number: int = 6, shoe_penetration: float = .25,
                                            dealer_peeks_for_blackjack: bool = True, das: bool = True,
-                                           dealer_stands_soft_17: bool = True, surrender_allowed: bool = True) -> None:
+                                           dealer_stands_soft_17: bool = True, surrender_allowed: bool = True,
+                                           units: int = 200, hands_played: int = 1000) -> None:
     """
     Estimate the expected value of a strategy. Used inside multithreading. Don't use this function directly.
 
@@ -441,15 +452,19 @@ def _expected_value_multithreading_wrapper(results: multiprocessing.Queue[float]
     :param das: Whether we can double after splitting.
     :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
     :param surrender_allowed: Whether the game rules allow surrendering.
+    :param units: The number of units in total.
+    :param hands_played: How many hands to play before checking the risk of ruin.
     """
     results.put(expected_value(action_class, betting_class, simulations, deck_number, shoe_penetration,
-                               dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed, False, False))
+                               dealer_peeks_for_blackjack, das, dealer_stands_soft_17, surrender_allowed,
+                               units, hands_played, False, False))
 
 
 def expected_value_multithreading(action_class: action_strategies.BaseMover, betting_class: betting_strategies.BaseBetter,
                                   total_simulations: int, cores: int = 2, deck_number: int = 6, shoe_penetration: float = .25,
                                   dealer_peeks_for_blackjack: bool = True, das: bool = True,
-                                  dealer_stands_soft_17: bool = True, surrender_allowed: bool = True) -> float:
+                                  dealer_stands_soft_17: bool = True, surrender_allowed: bool = True,
+                                  units: int = 200, hands_played: int = 1000) -> tuple[float, float, float, float]:
     """
     Estimate the expected value of a strategy, using multithreading to speed up the process. Can't plot the results.
 
@@ -463,25 +478,36 @@ def expected_value_multithreading(action_class: action_strategies.BaseMover, bet
     :param das: Whether we can double after splitting.
     :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
     :param surrender_allowed: Whether the game rules allow surrendering.
-    :return: The average return of a hand.
+    :param units: The number of units in total.
+    :param hands_played: How many hands to play before checking the risk of ruin.
+    :return: The total return, the average return of a game, the average bet size, and the risk of ruin.
     """
-    core_results: multiprocessing.Queue[float] = multiprocessing.Queue()
+    core_results: multiprocessing.Queue[tuple[float, float, float, float]] = multiprocessing.Queue()
     worker_pool = []
     for _ in range(cores):
         p = multiprocessing.Process(target=_expected_value_multithreading_wrapper,
                                     args=(core_results, action_class, betting_class, total_simulations // cores,
                                           deck_number, shoe_penetration, dealer_peeks_for_blackjack, das,
-                                          dealer_stands_soft_17, surrender_allowed))
+                                          dealer_stands_soft_17, surrender_allowed, units, hands_played))
         p.start()
         worker_pool.append(p)
     for p in worker_pool:
         p.join()  # Wait for all the workers to finish.
+    profit = 0.
     avg_profit = 0.
+    avg_bet = 0.
+    avg_risk_of_ruin = 0.
     for _ in range(cores):
-        avg_profit += core_results.get()
+        profit_core, avg_profit_core, avg_bet_core, risk_of_ruin = core_results.get()
+        profit += profit_core
+        avg_profit += avg_profit_core
+        avg_bet += avg_bet_core
+        avg_risk_of_ruin += risk_of_ruin
+    avg_bet /= cores
     avg_profit /= cores
-    print(f"Average profit: {avg_profit}")
-    return avg_profit
+    avg_risk_of_ruin /= cores
+    print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {avg_bet}, Risk of ruin: {avg_risk_of_ruin}")
+    return profit, avg_profit, avg_bet, avg_risk_of_ruin
 
 
 if __name__ == "__main__":
@@ -514,6 +540,9 @@ if __name__ == "__main__":
     parser.add_argument("--no-peek", action='store_true', help="Dealer doesn't peek for blackjack. (default: false)")
     parser.add_argument("--surrender", action='store_true', help='Allow surrendering. (default: true)')
     parser.add_argument("--no-surrender", action='store_true', help='Don\'t allow surrendering. (default: false)')
+    parser.add_argument("--units", default=200, type=int, help='The number of units in total. (default: 200)')
+    parser.add_argument("--hands-played", default=1000, type=int,
+                        help='How many hands to play before checking the risk of ruin. (default: 1000)')
     args = parser.parse_args()
 
     decks_number = args.decks
@@ -533,7 +562,7 @@ if __name__ == "__main__":
 
     if cores_used > 1:
         expected_value_multithreading(mover, better, args.simulations, cores_used, args.decks, args.deck_penetration,
-                                      peek_for_bj, das_allowed, stand_soft_17, can_surrender)
+                                      peek_for_bj, das_allowed, stand_soft_17, can_surrender, args.units, args.hands_played)
     else:
         expected_value(mover, better, args.simulations, args.decks, args.deck_penetration, peek_for_bj, das_allowed,
-                       stand_soft_17, can_surrender)
+                       stand_soft_17, can_surrender, args.units, args.hands_played)

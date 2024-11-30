@@ -136,7 +136,7 @@ python expected_value.py --simulations=1_000_000
 
 ![Expected Value (EV) Calculation](images/ev2.png)
 
-`Total profit: -332.0, Average profit: -0.000332`
+`Total profit: -332.0, Average profit: -0.000332, Average bet: 1.0, Risk of ruin: 0.0132`
 
 * Run on multiple cores:
 ```commandline

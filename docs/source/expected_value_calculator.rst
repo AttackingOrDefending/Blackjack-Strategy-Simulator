@@ -9,19 +9,15 @@ Command line options
     -c, --custom          Run custom user-defined movers and betters that require special initialization.
     --cores CORES         How many cores to use in the calculation. (default: 1, use -1 for all cores)
     -m MOVER, --mover MOVER
-                          Use a predefined mover. Can also be the name of the class of a user-defined mover. (possible
-                          values: card-count, basic-strategy-deviations, basic-strategy, perfect, simple; default:
-                          card-count)
+                          Use a predefined mover. Can also be the name of the class of a user-defined mover. (possible values: card-count, basic-strategy-deviations, basic-strategy, perfect, simple;
+                          default: card-count)
     -b BETTER, --better BETTER
-                          Use a predefined better. Can also be the name of the class of a user-defined better. (possible
-                          values: card-count, simple; default: card-count)
+                          Use a predefined better. Can also be the name of the class of a user-defined better. (possible values: card-count, simple; default: card-count)
     -s SIMULATIONS, --simulations SIMULATIONS
-                          How many simulations to run. Running more simulations gives more accurate results but they are
-                          slower to calculate. (default: 100,000)
+                          How many simulations to run. Running more simulations gives more accurate results but they are slower to calculate. (default: 100,000)
     --decks DECKS         How many decks the shoe starts with. (default: 6)
     --deck-penetration DECK_PENETRATION
-                          When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck
-                          penetration. (default: 0.25)
+                          When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck penetration. (default: 0.25)
     --stand17             Dealer should stand on soft 17. (default: true)
     --hit17               Dealer should hit on soft 17. (default: false)
     --das                 Allow double after split. (default: true)
@@ -30,6 +26,9 @@ Command line options
     --no-peek             Dealer doesn't peek for blackjack. (default: false)
     --surrender           Allow surrendering. (default: true)
     --no-surrender        Don't allow surrendering. (default: false)
+    --units UNITS         The number of units in total. (default: 200)
+    --hands-played HANDS_PLAYED
+                          How many hands to play before checking the risk of ruin. (default: 1000)
 
 See the help by running :code:`python expected_value.py -h`.
 
