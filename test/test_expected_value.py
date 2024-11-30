@@ -6,15 +6,15 @@ from betting_strategies import SimpleBetter, BaseBetter
 
 def test_expected_value() -> None:
     """Test the expected value (EV) calculator."""
-    ev = expected_value(SimpleMover(), SimpleBetter(), 1_000, plot_profits=False)
+    ev = expected_value(SimpleMover(), SimpleBetter(), 1_000, plot_profits=False)[1]
     assert ev < -0.02
 
     mover, better = get_mover_and_better("basic-strategy", "simple")
-    ev = expected_value_multithreading(mover, better, 1_000, 2)
+    ev = expected_value_multithreading(mover, better, 1_000, 2)[1]
     assert ev > -0.1
 
     mover, better = get_mover_and_better("card-count", "card-count")
-    ev = expected_value_multithreading(mover, better, 1_000, 2)
+    ev = expected_value_multithreading(mover, better, 1_000, 2)[1]
     assert ev > -0.05
 
     try:
