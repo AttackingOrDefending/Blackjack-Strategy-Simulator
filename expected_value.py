@@ -433,7 +433,8 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
     return profit, avg_profit, avg_bet, risk_of_ruin
 
 
-def _expected_value_multithreading_wrapper(results: multiprocessing.Queue[tuple[float, float, float, float]], action_class: action_strategies.BaseMover,
+def _expected_value_multithreading_wrapper(results: multiprocessing.Queue[tuple[float, float, float, float]],
+                                           action_class: action_strategies.BaseMover,
                                            betting_class: betting_strategies.BaseBetter,
                                            simulations: int, deck_number: int = 6, shoe_penetration: float = .25,
                                            dealer_peeks_for_blackjack: bool = True, das: bool = True,
