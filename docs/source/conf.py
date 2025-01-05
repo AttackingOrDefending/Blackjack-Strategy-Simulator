@@ -20,7 +20,7 @@ author = 'Ioannis Pantidis'
 extensions = ['sphinx.ext.autodoc']
 
 templates_path = ['_templates']
-exclude_patterns = []
+exclude_patterns: list[str] = []
 
 autodoc_typehints = "description"
 

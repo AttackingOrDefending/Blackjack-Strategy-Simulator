@@ -359,8 +359,8 @@ def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: t
                                                      dealer_stands_soft_17)[0]
                                ) * (probabilities[card])
                 elif max_splits == 1:
-                    profit_split = 0
-                    profit_no_split = 0
+                    profit_split = 0.
+                    profit_no_split = 0.
                     profit_split += (perfect_mover_cache((cards[0], card), dealer_up_card,
                                                          create_deck_from_counts_cache(counts_copy), can_double and das,
                                                          False, False, 1,
@@ -450,7 +450,7 @@ def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: t
                                                                      dealer_stands_soft_17)[0]
                                                ) * (probabilities[card] * probabilities_copy[card2] * probabilities[card3])
                         else:  # Can split the first hand.
-                            profit_no_split = 0
+                            profit_no_split = 0.
                             profit_split = (perfect_mover_cache((cards[0],), dealer_up_card,
                                                                 create_deck_from_counts_cache(counts_copy2),
                                                                 can_double and das,
