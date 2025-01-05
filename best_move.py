@@ -299,12 +299,12 @@ def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: t
                     probabilities_copy = probabilities_if_dealer_peeks_for_blackjack(counts_copy, dealer_up_card)
 
                 for card2 in range(2, 12):
-                    if counts_copy[card] == 0:
+                    if counts_copy[card2] == 0:
                         continue
                     counts_copy2 = counts_copy.copy()
                     counts_copy2[card2] -= 1
                     profit += ((chances_of_beating_dealer(HandPlayer((card, 11)).value, dealer_up_card, dealer_up_card == 11,
-                                                          dict_to_tuple(counts_copy2),
+                                                          dict_to_tuple(counts_copy),
                                                           False, dealer_peeks_for_blackjack,
                                                           dealer_stands_soft_17) * 2 - 1)
                                + (chances_of_beating_dealer(HandPlayer((card2, 11)).value, dealer_up_card,
@@ -326,34 +326,203 @@ def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: t
                 if dealer_up_card in (10, 11) and dealer_peeks_for_blackjack:
                     probabilities_copy = probabilities_if_dealer_peeks_for_blackjack(counts_copy, dealer_up_card)
 
-                for card2 in range(2, 12):
-                    if counts_copy[card] == 0:
-                        continue
-                    counts_copy2 = counts_copy.copy()
-                    counts_copy2[card2] -= 1
-                    if cards[0] == card:
+                if max_splits == 0:
+                    for card2 in range(2, 12):
+                        if counts_copy[card2] == 0:
+                            continue
+                        counts_copy2 = counts_copy.copy()
+                        counts_copy2[card2] -= 1
+
                         profit += (perfect_mover_cache((cards[0], card), dealer_up_card,
-                                                       create_deck_from_counts_cache(counts_copy2), can_double and das,
+                                                       create_deck_from_counts_cache(counts_copy),
+                                                       can_double and das,
                                                        False, False,
-                                                       max_splits, dealer_peeks_for_blackjack, das,
+                                                       0, dealer_peeks_for_blackjack, das,
                                                        dealer_stands_soft_17)[0]
                                    + perfect_mover_cache((cards[0], card2), dealer_up_card,
-                                                         create_deck_from_counts_cache(counts_copy2), can_double and das,
+                                                         create_deck_from_counts_cache(counts_copy2),
+                                                         can_double and das,
                                                          False, False,
                                                          0, dealer_peeks_for_blackjack, das,
                                                          dealer_stands_soft_17)[0]
                                    ) * (probabilities[card] * probabilities_copy[card2])
-                    else:
-                        profit += (perfect_mover_cache((cards[0], card), dealer_up_card,
-                                                       create_deck_from_counts_cache(counts_copy2), can_double and das,
-                                                       False, False, 0,
-                                                       dealer_peeks_for_blackjack, das, dealer_stands_soft_17)[0]
-                                   + perfect_mover_cache((cards[0], card2), dealer_up_card,
-                                                         create_deck_from_counts_cache(counts_copy2), can_double and das,
-                                                         False, False,
-                                                         max_splits, dealer_peeks_for_blackjack, das,
-                                                         dealer_stands_soft_17)[0]
-                                   ) * (probabilities[card] * probabilities_copy[card2])
+
+                elif cards[0] != card:  # Can't split the first hand.
+                    profit += (perfect_mover_cache((cards[0], card), dealer_up_card,
+                                                   create_deck_from_counts_cache(counts_copy), can_double and das,
+                                                   False, False, 0,
+                                                   dealer_peeks_for_blackjack, das, dealer_stands_soft_17)[0]
+                               + perfect_mover_cache((cards[0],), dealer_up_card,
+                                                     create_deck_from_counts_cache(counts_copy), can_double and das,
+                                                     False, False,
+                                                     max_splits, dealer_peeks_for_blackjack, das,
+                                                     dealer_stands_soft_17)[0]
+                               ) * (probabilities[card])
+                elif max_splits == 1:
+                    profit_split = 0
+                    profit_no_split = 0
+                    profit_split += (perfect_mover_cache((cards[0], card), dealer_up_card,
+                                                         create_deck_from_counts_cache(counts_copy), can_double and das,
+                                                         False, False, 1,
+                                                         dealer_peeks_for_blackjack, das, dealer_stands_soft_17)[0]
+                                     + perfect_mover_cache((cards[0],), dealer_up_card,
+                                                           create_deck_from_counts_cache(counts_copy), can_double and das,
+                                                           False, False,
+                                                           0, dealer_peeks_for_blackjack, das,
+                                                           dealer_stands_soft_17)[0]
+                                     ) * (probabilities[card])
+                    profit_no_split += (perfect_mover_cache((cards[0], card), dealer_up_card,
+                                                            create_deck_from_counts_cache(counts_copy), can_double and das,
+                                                            False, False, 0,
+                                                            dealer_peeks_for_blackjack, das, dealer_stands_soft_17)[0]
+                                        + perfect_mover_cache((cards[0],), dealer_up_card,
+                                                              create_deck_from_counts_cache(counts_copy), can_double and das,
+                                                              False, False,
+                                                              1, dealer_peeks_for_blackjack, das,
+                                                              dealer_stands_soft_17)[0]
+                                        ) * (probabilities[card])
+                    profit += max(profit_split, profit_no_split)
+                else:  # max_splits == 2
+                    for card2 in range(2, 12):
+                        if counts_copy[card2] == 0:
+                            continue
+                        counts_copy2 = counts_copy.copy()
+                        counts_copy2[card2] -= 1
+                        if card != card2:  # ([card, card2], [card], [card])  # Can't split the first of the three hands.
+                            for card3 in range(2, 12):
+                                if counts_copy2[card3] == 0:
+                                    continue
+                                counts_copy3 = counts_copy2.copy()
+                                counts_copy3[card3] -= 1
+                                if card3 == card:  # Can split the second of the three hands.
+                                    profit += max(perfect_mover_cache((cards[0], card2), dealer_up_card,
+                                                                      create_deck_from_counts_cache(counts_copy),
+                                                                      can_double and das, False, False, 0,
+                                                                      dealer_peeks_for_blackjack, das,
+                                                                      dealer_stands_soft_17)[0]
+                                                  + perfect_mover_cache((cards[0], card3), dealer_up_card,
+                                                                        create_deck_from_counts_cache(counts_copy2),
+                                                                        can_double and das, False, False, 1,
+                                                                        dealer_peeks_for_blackjack, das,
+                                                                        dealer_stands_soft_17)[0]
+                                                  + perfect_mover_cache((cards[0],), dealer_up_card,
+                                                                        create_deck_from_counts_cache(counts_copy3),
+                                                                        can_double and das, False, False, 0,
+                                                                        dealer_peeks_for_blackjack, das,
+                                                                        dealer_stands_soft_17)[0],
+                                                  perfect_mover_cache((cards[0], card2), dealer_up_card,
+                                                                      create_deck_from_counts_cache(counts_copy),
+                                                                      can_double and das,
+                                                                      False, False, 0,
+                                                                      dealer_peeks_for_blackjack, das,
+                                                                      dealer_stands_soft_17)[0]
+                                                  + perfect_mover_cache((cards[0], card3), dealer_up_card,
+                                                                        create_deck_from_counts_cache(counts_copy2),
+                                                                        can_double and das,
+                                                                        False, False, 0,
+                                                                        dealer_peeks_for_blackjack, das,
+                                                                        dealer_stands_soft_17)[0]
+                                                  + perfect_mover_cache((cards[0],), dealer_up_card,
+                                                                        create_deck_from_counts_cache(counts_copy3),
+                                                                        can_double and das,
+                                                                        False, False, 1,
+                                                                        dealer_peeks_for_blackjack, das,
+                                                                        dealer_stands_soft_17)[0]
+                                                  ) * (probabilities[card] * probabilities_copy[card2] * probabilities[card3])
+                                else:  # ([card, card2], [card, card3], [card])  # Can't split the first two hands.
+                                    profit += (perfect_mover_cache((cards[0], card2), dealer_up_card,
+                                                                   create_deck_from_counts_cache(counts_copy),
+                                                                   can_double and das,
+                                                                   False, False, 0,
+                                                                   dealer_peeks_for_blackjack, das,
+                                                                   dealer_stands_soft_17)[0]
+                                               + perfect_mover_cache((cards[0], card3), dealer_up_card,
+                                                                     create_deck_from_counts_cache(counts_copy2),
+                                                                     can_double and das,
+                                                                     False, False, 0,
+                                                                     dealer_peeks_for_blackjack, das,
+                                                                     dealer_stands_soft_17)[0]
+                                               + perfect_mover_cache((cards[0],), dealer_up_card,
+                                                                     create_deck_from_counts_cache(counts_copy3),
+                                                                     can_double and das,
+                                                                     False, False, 1,
+                                                                     dealer_peeks_for_blackjack, das,
+                                                                     dealer_stands_soft_17)[0]
+                                               ) * (probabilities[card] * probabilities_copy[card2] * probabilities[card3])
+                        else:  # Can split the first hand.
+                            profit_no_split = 0
+                            profit_split = (perfect_mover_cache((cards[0],), dealer_up_card,
+                                                                create_deck_from_counts_cache(counts_copy2),
+                                                                can_double and das,
+                                                                False, False, 0,
+                                                                dealer_peeks_for_blackjack, das,
+                                                                dealer_stands_soft_17)[0] * 4
+                                            ) * (probabilities[card] * probabilities_copy[card2])
+                            for card3 in range(2, 12):
+                                if counts_copy2[card3] == 0:
+                                    continue
+                                counts_copy3 = counts_copy2.copy()
+                                counts_copy3[card3] -= 1
+                                if card3 == card:  # Can split the second of the three hands.
+                                    profit_no_split += max(perfect_mover_cache((cards[0], card2), dealer_up_card,
+                                                                               create_deck_from_counts_cache(counts_copy),
+                                                                               can_double and das, False, False, 0,
+                                                                               dealer_peeks_for_blackjack, das,
+                                                                               dealer_stands_soft_17)[0]
+                                                           + perfect_mover_cache((cards[0], card3), dealer_up_card,
+                                                                                 create_deck_from_counts_cache(counts_copy2),
+                                                                                 can_double and das, False, False, 1,
+                                                                                 dealer_peeks_for_blackjack, das,
+                                                                                 dealer_stands_soft_17)[0]
+                                                           + perfect_mover_cache((cards[0],), dealer_up_card,
+                                                                                 create_deck_from_counts_cache(counts_copy3),
+                                                                                 can_double and das,
+                                                                                 False, False, 0,
+                                                                                 dealer_peeks_for_blackjack, das,
+                                                                                 dealer_stands_soft_17)[0],
+                                                           perfect_mover_cache((cards[0], card2), dealer_up_card,
+                                                                               create_deck_from_counts_cache(counts_copy),
+                                                                               can_double and das,
+                                                                               False, False, 0,
+                                                                               dealer_peeks_for_blackjack, das,
+                                                                               dealer_stands_soft_17)[0]
+                                                           + perfect_mover_cache((cards[0], card3), dealer_up_card,
+                                                                                 create_deck_from_counts_cache(counts_copy2),
+                                                                                 can_double and das,
+                                                                                 False, False, 0,
+                                                                                 dealer_peeks_for_blackjack, das,
+                                                                                 dealer_stands_soft_17)[0]
+                                                           + perfect_mover_cache((cards[0],), dealer_up_card,
+                                                                                 create_deck_from_counts_cache(counts_copy3),
+                                                                                 can_double and das,
+                                                                                 False, False, 1,
+                                                                                 dealer_peeks_for_blackjack, das,
+                                                                                 dealer_stands_soft_17)[0]
+                                                           ) * (probabilities[card] * probabilities_copy[card2]
+                                                                * probabilities[card3])
+                                else:  # ([card, card2], [card, card3], [card])  # Can't split the first two hands.
+                                    profit_no_split += (perfect_mover_cache((cards[0], card2), dealer_up_card,
+                                                                            create_deck_from_counts_cache(counts_copy),
+                                                                            can_double and das,
+                                                                            False, False, 0,
+                                                                            dealer_peeks_for_blackjack, das,
+                                                                            dealer_stands_soft_17)[0]
+                                                        + perfect_mover_cache((cards[0], card3), dealer_up_card,
+                                                                              create_deck_from_counts_cache(counts_copy2),
+                                                                              can_double and das,
+                                                                              False, False, 0,
+                                                                              dealer_peeks_for_blackjack, das,
+                                                                              dealer_stands_soft_17)[0]
+                                                        + perfect_mover_cache((cards[0],), dealer_up_card,
+                                                                              create_deck_from_counts_cache(counts_copy3),
+                                                                              can_double and das,
+                                                                              False, False, 1,
+                                                                              dealer_peeks_for_blackjack, das,
+                                                                              dealer_stands_soft_17)[0]
+                                                        ) * (probabilities[card] * probabilities_copy[card2]
+                                                             * probabilities[card3])
+                            profit += max(profit_split, profit_no_split)
+
             split_profit = profit
 
     return stand_profit, hit_profit, double_profit, split_profit, surrender_profit, insurance_profit
