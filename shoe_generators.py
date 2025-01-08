@@ -12,6 +12,8 @@ def hilo_generator(true_count: int, decks: int, deck_penetration: float, cards_p
     :param deck_penetration: When to reshuffle the shoe. Reshuffles when cards remaining < starting cards * deck penetration.
         So the cards in the returned shoe must be at least starting cards * deck penetration.
     :param cards_present: The cards we have already seen, so that we don't get shoe with more cards of one type than possible.
+        For example, if the player was dealt 3 and 5, and the dealer's up card is a 3, then for 6 decks the maximum possible
+        number of 3s is 6*4-2=22.
     :return: A shoe with a specific true count.
     """
     max_true_count = true_count + .3 if true_count >= 0 else true_count
