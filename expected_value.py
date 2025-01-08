@@ -203,16 +203,17 @@ def play_hand(action_class: action_strategies.BaseMover,
             hand2 = Hand([hand.cards[1]])
             card1 = get_card_from_shoe(shoe)
             hand1.add_card(card1)
-            done_split_hands, splits_used_first_hand = play_hand(action_class, [hand1.cards],
-                                        dealer_up_card, dealer_down_card, shoe, splits_remaining - 1, deck_number,
-                                        dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
+            done_split_hands, splits_used_first_hand = play_hand(action_class, [hand1.cards], dealer_up_card,
+                                                                 dealer_down_card, shoe, splits_remaining - 1, deck_number,
+                                                                 dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
             done_hands.extend(done_split_hands)
             splits_used += splits_used_first_hand
             card2 = get_card_from_shoe(shoe)
             hand2.add_card(card2)
             done_split_hands, splits_used_second_hand = play_hand(action_class, [hand2.cards] + hand_cards[hand_index + 1:],
-                                        dealer_up_card, dealer_down_card, shoe, splits_remaining - splits_used, deck_number,
-                                        dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
+                                                                  dealer_up_card, dealer_down_card, shoe,
+                                                                  splits_remaining - splits_used, deck_number,
+                                                                  dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
             done_hands.extend(done_split_hands)
             splits_used += splits_used_second_hand
             break
@@ -310,9 +311,9 @@ def simulate_hand(action_class: action_strategies.BaseMover,
             return -1 + insurance_profit
         if hand.value() > 21:
             return -1 + insurance_profit
-        hand_cards, _ = play_hand(action_class, [hand.cards], dealer_up_card, dealer_down_card, shoe,
-                                  splits_remaining, deck_number, dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
-        hand = Hand(hand_cards[0])
+        hands, _ = play_hand(action_class, [hand.cards], dealer_up_card, dealer_down_card, shoe,
+                             splits_remaining, deck_number, dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
+        hand = Hand(hands[0])
         dealer_value = play_dealer((dealer_up_card, dealer_down_card), shoe, dealer_stands_soft_17)
         if hand.value() > 21 or dealer_value > hand.value():
             return -1 + insurance_profit
@@ -344,7 +345,8 @@ def simulate_hand(action_class: action_strategies.BaseMover,
         card1 = get_card_from_shoe(shoe)
         hand1.add_card(card1)
         all_hands, splits_used = play_hand(action_class, [hand1.cards], dealer_up_card, dealer_down_card, shoe,
-                              splits_remaining - 1, deck_number, dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
+                                           splits_remaining - 1, deck_number, dealer_peeks_for_blackjack, das,
+                                           dealer_stands_soft_17)
         card2 = get_card_from_shoe(shoe)
         hand2.add_card(card2)
         done_hands, _ = play_hand(action_class, [hand2.cards], dealer_up_card, dealer_down_card, shoe,
