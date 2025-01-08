@@ -410,7 +410,7 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
             dealer_down_card = get_card_from_shoe(shoe)
             player_cards = [get_card_from_shoe(shoe), get_card_from_shoe(shoe)]
 
-            cards_seen.extend([dealer_down_card] + player_cards)
+            cards_seen.extend([dealer_up_card] + player_cards)
 
             reward = simulate_hand(action_class, player_cards, dealer_up_card,
                                    dealer_down_card, shoe, 3, deck_number,
