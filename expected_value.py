@@ -120,6 +120,12 @@ def get_mover_and_better(mover_name: str, better_name: str
         mover_class = getattr(action_strategies, mover_name)()
     if better_name == "card-count":
         better_class = betting_strategies.CardCountBetter()
+    elif better_name == "conservative-card-count":
+        better_class = betting_strategies.ConservativeCardCountBetter()
+    elif better_name == "wonging-card-count":
+        better_class = betting_strategies.WongingCardCountBetter()
+    elif better_name == "wonging-conservative-card-count":
+        better_class = betting_strategies.WongingConservativeCardCountBetter()
     elif better_name == "simple":
         better_class = betting_strategies.SimpleBetter()
     else:  # Run a user-defined class.
@@ -533,7 +539,8 @@ if __name__ == "__main__":
                              'default: card-count)')
     parser.add_argument("-b", "--better", default="card-count",
                         help='Use a predefined better. Can also be the name of the class of a user-defined better. '
-                             '(possible values: card-count, simple; default: card-count)')
+                             '(possible values: card-count, conservative-card-count, wonging-card-count, '
+                             'wonging-conservative-card-count, simple; default: card-count)')
     parser.add_argument("-s", "--simulations", default=100_000, type=int,
                         help='How many simulations to run. Running more simulations gives more accurate '
                              'results but they are slower to calculate. (default: 100,000)')

@@ -12,7 +12,8 @@ Command line options
                           Use a predefined mover. Can also be the name of the class of a user-defined mover. (possible values: card-count, basic-strategy-deviations, basic-strategy, perfect, simple;
                           default: card-count)
     -b BETTER, --better BETTER
-                          Use a predefined better. Can also be the name of the class of a user-defined better. (possible values: card-count, simple; default: card-count)
+                          Use a predefined better. Can also be the name of the class of a user-defined better. (possible values: card-count, conservative-card-count,
+                          wonging-card-count, wonging-conservative-card-count, simple; default: card-count)
     -s SIMULATIONS, --simulations SIMULATIONS
                           How many simulations to run. Running more simulations gives more accurate results but they are slower to calculate. (default: 100,000)
     --decks DECKS         How many decks the shoe starts with. (default: 6)

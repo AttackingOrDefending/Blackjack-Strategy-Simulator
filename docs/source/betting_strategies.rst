@@ -27,3 +27,12 @@ Pre-built betters
 
 .. autoclass:: betting_strategies.CardCountBetter
     :members:
+
+.. autoclass:: betting_strategies.ConservativeCardCountBetter
+    :members:
+
+.. autoclass:: betting_strategies.WongingCardCountBetter
+    :members:
+
+.. autoclass:: betting_strategies.WongingConservativeCardCountBetter
+    :members:
