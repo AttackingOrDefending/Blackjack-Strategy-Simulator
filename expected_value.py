@@ -120,6 +120,12 @@ def get_mover_and_better(mover_name: str, better_name: str
         mover_class = getattr(action_strategies, mover_name)()
     if better_name == "card-count":
         better_class = betting_strategies.CardCountBetter()
+    elif better_name == "conservative-card-count":
+        better_class = betting_strategies.ConservativeCardCountBetter()
+    elif better_name == "wonging-card-count":
+        better_class = betting_strategies.WongingCardCountBetter()
+    elif better_name == "wonging-conservative-card-count":
+        better_class = betting_strategies.WongingConservativeCardCountBetter()
     elif better_name == "simple":
         better_class = betting_strategies.SimpleBetter()
     else:  # Run a user-defined class.
@@ -373,7 +379,7 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
                    dealer_peeks_for_blackjack: bool = True, das: bool = True,
                    dealer_stands_soft_17: bool = True, surrender_allowed: bool = True,
                    units: int = 200, hands_played: int = 1000,
-                   plot_profits: bool = True, print_info: bool = True) -> tuple[float, float, float, float]:
+                   plot_profits: bool = True, print_info: bool = True) -> tuple[float, float, float, float, float]:
     """
     Estimate the expected value of a strategy.
 
@@ -426,23 +432,28 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
 
     avg_profit = profit / sum(bets)
     avg_bet = sum(bets) / len(bets)
+    non_zero_bets = [b for b in bets if b > 0]
+    if not non_zero_bets:
+        non_zero_bets = [0]
+    avg_non_zero_bet = sum(non_zero_bets) / len(non_zero_bets)
     risk_of_ruin_list = [(1 if p - profits_over_time_hand[i - hands_played] <= -units else 0)
                          for i, p in enumerate(profits_over_time_hand) if i >= hands_played]
     risk_of_ruin = sum(risk_of_ruin_list) / len(risk_of_ruin_list)
     if print_info:
-        print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {avg_bet}, Risk of ruin: {risk_of_ruin}")
+        print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {avg_bet}, "
+              f"Average bet (if Wonging): {avg_non_zero_bet}, Risk of ruin: {risk_of_ruin}")
     if plot_profits:
         plt.plot(profits_over_time_hand, label="Total profit")
-        plt.xlabel("Games played")
+        plt.xlabel("Hands played")
         plt.ylabel("Total profit")
         plt.title("Profits over time")
         plt.legend()
         plt.show()
 
-    return profit, avg_profit, avg_bet, risk_of_ruin
+    return profit, avg_profit, avg_bet, avg_non_zero_bet, risk_of_ruin
 
 
-def _expected_value_multithreading_wrapper(results: multiprocessing.Queue[tuple[float, float, float, float]],
+def _expected_value_multithreading_wrapper(results: multiprocessing.Queue[tuple[float, float, float, float, float]],
                                            action_class: action_strategies.BaseMover,
                                            betting_class: betting_strategies.BaseBetter,
                                            simulations: int, deck_number: int = 6, shoe_penetration: float = .25,
@@ -491,7 +502,7 @@ def expected_value_multithreading(action_class: action_strategies.BaseMover, bet
     :param hands_played: How many hands to play before checking the risk of ruin.
     :return: The total return, the average return of a game, the average bet size, and the risk of ruin.
     """
-    core_results: multiprocessing.Queue[tuple[float, float, float, float]] = multiprocessing.Queue()
+    core_results: multiprocessing.Queue[tuple[float, float, float, float, float]] = multiprocessing.Queue()
     worker_pool = []
     for _ in range(cores):
         p = multiprocessing.Process(target=_expected_value_multithreading_wrapper,
@@ -505,17 +516,21 @@ def expected_value_multithreading(action_class: action_strategies.BaseMover, bet
     profit = 0.
     avg_profit = 0.
     avg_bet = 0.
+    avg_non_zero_bet = 0.
     avg_risk_of_ruin = 0.
     for _ in range(cores):
-        profit_core, avg_profit_core, avg_bet_core, risk_of_ruin = core_results.get()
+        profit_core, avg_profit_core, avg_bet_core, avg_non_zero_bet_core, risk_of_ruin = core_results.get()
         profit += profit_core
         avg_profit += avg_profit_core
         avg_bet += avg_bet_core
+        avg_non_zero_bet += avg_non_zero_bet_core
         avg_risk_of_ruin += risk_of_ruin
     avg_bet /= cores
+    avg_non_zero_bet /= cores
     avg_profit /= cores
     avg_risk_of_ruin /= cores
-    print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {avg_bet}, Risk of ruin: {avg_risk_of_ruin}")
+    print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {avg_bet}, "
+          f"Average bet (if Wonging): {avg_non_zero_bet}, Risk of ruin: {avg_risk_of_ruin}")
     return profit, avg_profit, avg_bet, avg_risk_of_ruin
 
 
@@ -533,7 +548,8 @@ if __name__ == "__main__":
                              'default: card-count)')
     parser.add_argument("-b", "--better", default="card-count",
                         help='Use a predefined better. Can also be the name of the class of a user-defined better. '
-                             '(possible values: card-count, simple; default: card-count)')
+                             '(possible values: card-count, conservative-card-count, wonging-card-count, '
+                             'wonging-conservative-card-count, simple; default: card-count)')
     parser.add_argument("-s", "--simulations", default=100_000, type=int,
                         help='How many simulations to run. Running more simulations gives more accurate '
                              'results but they are slower to calculate. (default: 100,000)')
