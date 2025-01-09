@@ -406,9 +406,10 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
         while len(shoe) >= reshuffle_at:
             cards_seen = get_cards_seen(deck_number, shoe)
             initial_bet = betting_class.get_bet(cards_seen, deck_number)
+            player_cards = [get_card_from_shoe(shoe)]
             dealer_up_card = get_card_from_shoe(shoe)
+            player_cards.append(get_card_from_shoe(shoe))
             dealer_down_card = get_card_from_shoe(shoe)
-            player_cards = [get_card_from_shoe(shoe), get_card_from_shoe(shoe)]
 
             cards_seen.extend([dealer_up_card] + player_cards)
 
