@@ -266,14 +266,11 @@ All contributions are welcome. See [CONTRIBUTING](CONTRIBUTING.md) for more info
 
 While this program tries to be as accurate as possible, there may be some problems, 
 so one should not base their blackjack strategy on this program.
-This program was written to investigate blackjack theoretically, using combinatorial/probabilistic simulators and monte carlo simulations.
+This program was written to investigate blackjack theoretically, using combinatorial simulators and monte carlo simulations.
 
 ## Best Move Analysis
 
-The Best Move Analysis doesn't take into account the cards the other hand gets when hitting after a split 
-(which is better than most calculators, as most don't even take the first card the other hand gets after a split into account while this calculator does).
-It can also waste a few splits since it either gives all of the remaining splits to the first hand or the second one, and cannot give some to the first and some to the second.
-These minor problems are very unlikely to cause the engine to make a wrong move.
+The Best Move Analysis only takes into account the first few cards the first hand gets when splitting (the exact number depends on the situation).
 
 ## Basic Strategy Generator
 
