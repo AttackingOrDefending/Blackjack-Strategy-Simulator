@@ -430,15 +430,16 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
         shoe = starting_shoe.copy()
         random.shuffle(shoe)
 
-    avg_profit = profit / sum(bets)
-    avg_bet = sum(bets) / len(bets)
+    total_bets = sum(bets)
+    avg_profit = profit / total_bets if total_bets else 0
+    avg_bet = total_bets / len(bets)
     non_zero_bets = [b for b in bets if b > 0]
     if not non_zero_bets:
         non_zero_bets = [0]
     avg_non_zero_bet = sum(non_zero_bets) / len(non_zero_bets)
     risk_of_ruin_list = [(1 if p - profits_over_time_hand[i - hands_played] <= -units else 0)
                          for i, p in enumerate(profits_over_time_hand) if i >= hands_played]
-    risk_of_ruin = sum(risk_of_ruin_list) / len(risk_of_ruin_list)
+    risk_of_ruin = sum(risk_of_ruin_list) / len(risk_of_ruin_list) if len(risk_of_ruin_list) else float("nan")
     if print_info:
         print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {avg_bet}, "
               f"Average bet (if Wonging): {avg_non_zero_bet}, Risk of ruin: {risk_of_ruin}")
