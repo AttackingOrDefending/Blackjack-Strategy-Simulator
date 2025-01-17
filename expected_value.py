@@ -3,6 +3,7 @@ from __future__ import annotations
 from utils import get_cards_seen, DECK, readable_number
 from action_strategies import BaseMover
 from betting_strategies import BaseBetter
+from collections import deque
 from typing import Iterable
 import matplotlib.pyplot as plt
 import random
@@ -437,9 +438,21 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
     if not non_zero_bets:
         non_zero_bets = [0]
     avg_non_zero_bet = sum(non_zero_bets) / len(non_zero_bets)
-    risk_of_ruin_list = [(1 if p - profits_over_time_hand[i - hands_played] <= -units else 0)
-                         for i, p in enumerate(profits_over_time_hand) if i >= hands_played]
-    risk_of_ruin = sum(risk_of_ruin_list) / len(risk_of_ruin_list) if len(risk_of_ruin_list) else float("nan")
+
+    risk_of_ruin_count = 0
+    total_sims = len(profits_over_time_hand)
+    deque_min = deque()
+    for index, profit in enumerate(profits_over_time_hand):
+        while deque_min and deque_min[0] < index - hands_played + 1:
+            deque_min.popleft()
+        while deque_min and profits_over_time_hand[deque_min[-1]] >= profit:
+            deque_min.pop()
+        deque_min.append(index)
+        if index >= hands_played - 1:
+            if profits_over_time_hand[deque_min[0]] <= profit - units:
+                risk_of_ruin_count += 1
+    risk_of_ruin = risk_of_ruin_count / (total_sims - hands_played + 1) if total_sims >= hands_played else float("nan")
+
     if print_info:
         print(f"Total profit: {profit}, Average profit: {avg_profit}, Average bet: {avg_bet}, "
               f"Average bet (if Wonging): {avg_non_zero_bet}, Risk of ruin: {risk_of_ruin}")
