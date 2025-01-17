@@ -441,7 +441,7 @@ def expected_value(action_class: action_strategies.BaseMover, betting_class: bet
 
     risk_of_ruin_count = 0
     total_sims = len(profits_over_time_hand)
-    deque_min = deque()
+    deque_min: deque[int] = deque()
     for index, profit in enumerate(profits_over_time_hand):
         while deque_min and deque_min[0] < index - hands_played + 1:
             deque_min.popleft()
