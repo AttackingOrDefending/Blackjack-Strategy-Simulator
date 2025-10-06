@@ -232,9 +232,10 @@ def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: t
 
     amount_of_cards_not_seen = len(cards_not_seen)
     counts = {k: cards_not_seen.count(k) for k in range(2, 12)}
-    probabilities = {k: counts[k] / amount_of_cards_not_seen for k in range(2, 12)}
     if dealer_up_card in (10, 11) and dealer_peeks_for_blackjack:
         probabilities = probabilities_if_dealer_peeks_for_blackjack(counts, dealer_up_card)
+    else:
+        probabilities = {k: counts[k] / amount_of_cards_not_seen for k in range(2, 12)}
 
     stand_profit = chances_of_beating_dealer(hand.value, dealer_up_card, dealer_up_card == 11, dict_to_tuple(counts),
                                              False, dealer_peeks_for_blackjack,
@@ -294,9 +295,10 @@ def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: t
                     continue
                 counts_copy = counts.copy()
                 counts_copy[card] -= 1
-                probabilities_copy = {k: counts_copy[k] / (amount_of_cards_not_seen - 1) for k in range(2, 12)}
                 if dealer_up_card in (10, 11) and dealer_peeks_for_blackjack:
                     probabilities_copy = probabilities_if_dealer_peeks_for_blackjack(counts_copy, dealer_up_card)
+                else:
+                    probabilities_copy = {k: counts_copy[k] / (amount_of_cards_not_seen - 1) for k in range(2, 12)}
 
                 for card2 in range(2, 12):
                     if counts_copy[card2] == 0:
@@ -322,9 +324,10 @@ def perfect_mover(cards: tuple[int, ...], dealer_up_card: int, cards_not_seen: t
                     continue
                 counts_copy = counts.copy()
                 counts_copy[card] -= 1
-                probabilities_copy = {k: counts_copy[k] / (amount_of_cards_not_seen - 1) for k in range(2, 12)}
                 if dealer_up_card in (10, 11) and dealer_peeks_for_blackjack:
                     probabilities_copy = probabilities_if_dealer_peeks_for_blackjack(counts_copy, dealer_up_card)
+                else:
+                    probabilities_copy = {k: counts_copy[k] / (amount_of_cards_not_seen - 1) for k in range(2, 12)}
 
                 if max_splits == 0:
                     for card2 in range(2, 12):
