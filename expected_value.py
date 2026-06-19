@@ -2,7 +2,9 @@
 from __future__ import annotations
 from utils import get_cards_seen, DECK, readable_number
 from action_strategies import BaseMover
+from action_strategies import ExpectimaxMover
 from betting_strategies import BaseBetter
+from betting_strategies import SimpleBetter
 from collections import deque
 from typing import Iterable
 import matplotlib.pyplot as plt
@@ -594,8 +596,8 @@ if __name__ == "__main__":
 
     if args.custom:
         # ADD CUSTOM CODE HERE IF YOU HAVE BUILT YOUR OWN MOVER OR BETTER.
-        mover = BaseMover()  # Replace BaseMover with your own class.
-        better = BaseBetter()  # Replace BaseBetter with your own class.
+        mover = ExpectimaxMover()  # Replace BaseMover with your own class.
+        better = SimpleBetter()  # Replace BaseBetter with your own class.
     else:
         mover, better = get_mover_and_better(args.mover, args.better)
 

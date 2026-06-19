@@ -1,6 +1,9 @@
 """Action strategies to be used in expected value."""
 from best_move import perfect_mover_cache
 from utils import get_cards_seen, get_hilo_running_count
+from collections import Counter
+from functools import lru_cache
+import math
 import csv
 
 
@@ -29,6 +32,7 @@ class BaseMover:
         :param dealer_stands_soft_17: Whether the dealer stands on soft 17.
         :return: The action to do, and whether to take insurance.
         """
+
         raise NotImplementedError("The `get_move` method hasn't been overridden.")
 
 
@@ -409,3 +413,153 @@ class PerfectMover(BaseMover):
         profits = perfect_mover_cache(tuple(hand_cards), dealer_up_card, tuple(cards_not_seen), can_double, can_insure,
                                       can_surrender, int(can_split), dealer_peeks_for_blackjack, das, dealer_stands_soft_17)
         return str(profits[1]), profits[2] > 0  # profit[1] is a string. str is there for mypy.
+
+class ExpectimaxMover(BaseMover):
+    """
+    Selects an action using a depth-limited Expectimax search over
+    player actions and stochastic card draws.
+    """
+
+    MAX_DEPTH = 1
+
+    @staticmethod
+    def get_move(
+        hand_value,
+        hand_has_ace,
+        dealer_up_card,
+        can_double,
+        can_split,
+        can_surrender,
+        can_insure,
+        hand_cards,
+        cards_seen,
+        deck_number,
+        dealer_peeks_for_blackjack,
+        das,
+        dealer_stands_soft_17
+    ):
+        # Build unseen deck
+        full_deck = []
+        for _ in range(deck_number):
+            full_deck.extend([2,3,4,5,6,7,8,9,10,10,10,10,11])
+
+        deck_counter = Counter(full_deck)
+        for c in cards_seen:
+            if deck_counter[c] > 0:
+                deck_counter[c] -= 1
+
+        @lru_cache(None)
+        def expectimax(player_total, usable_ace, deck_tuple, depth):
+            # Terminal conditions
+            if player_total > 21 or depth == 0:
+                return ExpectimaxMover.evaluate_state(
+                    player_total,
+                    usable_ace,
+                    dealer_up_card,
+                    hand_cards,
+                    cards_seen,
+                    deck_number,
+                    dealer_peeks_for_blackjack,
+                    das,
+                    dealer_stands_soft_17
+                )
+
+            best_value = -math.inf
+
+            # STAND
+            stand_value = ExpectimaxMover.evaluate_state(
+                player_total,
+                usable_ace,
+                dealer_up_card,
+                hand_cards,
+                cards_seen,
+                deck_number,
+                dealer_peeks_for_blackjack,
+                das,
+                dealer_stands_soft_17
+            )
+            best_value = max(best_value, stand_value)
+
+            # HIT (Chance Node)
+            hit_value = 0.0
+            total_cards = sum(deck_tuple)
+
+            if total_cards > 0:
+                for card, count in enumerate(deck_tuple):
+                    if count == 0:
+                        continue
+
+                    prob = count / total_cards
+                    new_total, new_ace = ExpectimaxMover.apply_card(
+                        player_total, usable_ace, card
+                    )
+
+                    new_deck = list(deck_tuple)
+                    new_deck[card] -= 1
+
+                    hit_value += prob * expectimax(
+                        new_total,
+                        new_ace,
+                        tuple(new_deck),
+                        depth - 1
+                    )
+
+                best_value = max(best_value, hit_value)
+
+            return best_value
+
+        # Convert deck counter to tuple indexed by card value
+        max_card = max(deck_counter.keys())
+        deck_tuple = [0] * (max_card + 1)
+        for card, count in deck_counter.items():
+            deck_tuple[card] = count
+
+        # Evaluate top-level actions
+        move_values = {}
+
+        move_values["s"] = expectimax(
+            hand_value, hand_has_ace, tuple(deck_tuple), 0
+        )
+
+        move_values["h"] = expectimax(
+            hand_value, hand_has_ace, tuple(deck_tuple), ExpectimaxMover.MAX_DEPTH
+        )
+
+        if can_double:
+            move_values["d"] = move_values["s"]
+
+        if can_surrender:
+            move_values["u"] = -0.5
+
+        best_move = max(move_values, key=move_values.get)
+
+        return best_move, False
+
+    @staticmethod
+    def apply_card(total, usable_ace, card):
+        total += card
+        if card == 11:
+            usable_ace = True
+        if total > 21 and usable_ace:
+            total -= 10
+            usable_ace = False
+        return total, usable_ace
+
+    @staticmethod
+    def evaluate_state(
+        player_total,
+        usable_ace,
+        dealer_up_card,
+        hand_cards,
+        cards_seen,
+        deck_number,
+        dealer_peeks_for_blackjack,
+        das,
+        dealer_stands_soft_17
+    ):
+        # Simple heuristic terminal evaluation
+        if player_total > 21:
+            return -1.0
+        if player_total >= 17:
+            return 0.5
+        return 0.0

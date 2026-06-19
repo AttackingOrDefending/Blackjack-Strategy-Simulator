@@ -288,3 +288,4 @@ For the most accurate result the calculator has to run millions of simulations.
 
 # License
 This program is licensed under the AGPLv3 (or any later version at your option). Check out the [LICENSE file](LICENSE) for the full text.
+
